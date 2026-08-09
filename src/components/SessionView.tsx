@@ -11,6 +11,7 @@ import {
   ArrowLeft,
   Check,
   CircleStop,
+  Columns2,
   GitBranch,
   History as HistoryIcon,
   Loader2,
@@ -18,9 +19,10 @@ import {
   ShieldQuestion,
   X,
 } from "lucide-react";
+import { addSessionToWorkspace } from "@/stores/workspace";
+import { openWorkspace } from "@/stores/registry";
 import { cn } from "@/lib/cn";
 import * as ipc from "@/lib/ipc";
-import type { HandshakeInfo } from "@/lib/generated/HandshakeInfo";
 import type { PendingPermission } from "@/lib/generated/PendingPermission";
 import {
   getOrCreateSessionStore,
@@ -30,12 +32,19 @@ import {
 import { focusSession, registryStore, useRegistry } from "@/stores/registry";
 import { statusColor } from "@/lib/status";
 import { MemoItemView } from "./TranscriptItems";
+import { AccountChip, ModelSwitcher, ModeSwitcher } from "./SessionControls";
 
-// The set_permission_mode control request accepts "default" (not "manual",
-// which is flag-only) — see PROTOCOL.md.
-const MODES = ["default", "plan", "acceptEdits", "auto", "dontAsk", "bypassPermissions"];
-
-export function SessionView({ sessionId }: { sessionId: string }) {
+export function SessionView({
+  sessionId,
+  chrome = "full",
+  active = true,
+}: {
+  sessionId: string;
+  /** "none" = transcript+composer only (split-view panes bring their own header). */
+  chrome?: "full" | "none";
+  /** Only the active view responds to Esc (split view has many panes). */
+  active?: boolean;
+}) {
   const store = getOrCreateSessionStore(sessionId);
   const status = useStore(store, (s) => s.status);
   const meta = useStore(store, (s) => s.meta);
@@ -76,9 +85,12 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   // Esc: deny+interrupt the newest pending approval, else plain interrupt.
   const pendingRef = useRef(pending);
   pendingRef.current = pending;
+  const activeRef = useRef(active);
+  activeRef.current = active;
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
+      if (!activeRef.current) return;
       const ui = registryStore.getState();
       if (ui.newSessionOpen || ui.paletteOpen) return;
       const newest = pendingRef.current[pendingRef.current.length - 1];
@@ -119,6 +131,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
+      {chrome === "full" && (
       <div className="flex items-center gap-2 border-b border-border-subtle px-3 py-1.5 text-xs text-fg-secondary">
         <button
           onClick={() => focusSession(null)}
@@ -176,6 +189,16 @@ export function SessionView({ sessionId }: { sessionId: string }) {
           </span>
         )}
         <button
+          onClick={() => {
+            addSessionToWorkspace(sessionId);
+            openWorkspace();
+          }}
+          className="inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-fg-muted hover:bg-hover hover:text-fg"
+          title="Open in split view (Ctrl+G)"
+        >
+          <Columns2 size={13} />
+        </button>
+        <button
           onClick={() => void ipc.stopSession(sessionId)}
           className="inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-fg-muted hover:bg-hover hover:text-danger"
           title="Stop session"
@@ -183,6 +206,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
           <CircleStop size={13} />
         </button>
       </div>
+      )}
 
       <div className="relative min-h-0 flex-1 select-text">
         <Virtuoso
@@ -286,90 +310,6 @@ function LoadHistoryButton({ sessionId }: { sessionId: string }) {
       )}
       Load earlier conversation
     </button>
-  );
-}
-
-/** Which account this session actually runs as (from the handshake). */
-function AccountChip({ handshake }: { handshake: HandshakeInfo | null }) {
-  const account = handshake?.account as { email?: string } | null;
-  if (!account?.email) return null;
-  return (
-    <span
-      className="hidden shrink-0 truncate text-[10px] text-fg-muted xl:inline"
-      title={`Signed in as ${account.email}`}
-    >
-      {account.email}
-    </span>
-  );
-}
-
-function ModeSwitcher({
-  current,
-  disabled,
-  onChange,
-}: {
-  current: string;
-  disabled: boolean;
-  onChange: (mode: string) => void;
-}) {
-  const options = MODES.includes(current) ? MODES : [current, ...MODES];
-  return (
-    <select
-      value={current}
-      disabled={disabled}
-      onChange={(e) => onChange(e.target.value)}
-      title="Permission mode (live)"
-      className="shrink-0 rounded border border-border bg-elevated px-1.5 py-0.5 text-xs disabled:opacity-50"
-    >
-      {options.map((m) => (
-        <option key={m} value={m}>
-          {m}
-        </option>
-      ))}
-    </select>
-  );
-}
-
-interface ModelOption {
-  value: string;
-  displayName: string;
-  resolvedModel?: string;
-}
-
-function ModelSwitcher({
-  current,
-  handshake,
-  disabled,
-  onChange,
-}: {
-  current: string;
-  handshake: HandshakeInfo | null;
-  disabled: boolean;
-  onChange: (model: string) => void;
-}) {
-  const models: ModelOption[] = Array.isArray(handshake?.models)
-    ? (handshake!.models as unknown as ModelOption[])
-    : [];
-  // meta.model is the RESOLVED id (claude-haiku-4-5-…); options use aliases.
-  const selected =
-    models.find((m) => m.resolvedModel === current || m.value === current)?.value ??
-    current;
-  const hasSelected = models.some((m) => m.value === selected);
-  return (
-    <select
-      value={selected}
-      disabled={disabled || models.length === 0}
-      onChange={(e) => onChange(e.target.value)}
-      title="Model (live)"
-      className="max-w-40 shrink-0 truncate rounded border border-border bg-elevated px-1.5 py-0.5 text-xs disabled:opacity-50"
-    >
-      {!hasSelected && <option value={selected}>{selected || "model"}</option>}
-      {models.map((m) => (
-        <option key={m.value} value={m.value}>
-          {m.displayName}
-        </option>
-      ))}
-    </select>
   );
 }
 

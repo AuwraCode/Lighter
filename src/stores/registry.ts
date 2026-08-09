@@ -7,11 +7,17 @@ import { useStore } from "zustand";
 import type { RegistryBatch } from "@/lib/generated/RegistryBatch";
 import type { SessionSummary } from "@/lib/generated/SessionSummary";
 import * as ipc from "@/lib/ipc";
+// Function-level usage only — safe module cycle (registry ↔ workspace).
+import { workspaceSessionIds } from "./workspace";
+
+export type ViewMode = "dashboard" | "session" | "workspace";
 
 export interface RegistryState {
   ready: boolean;
   order: string[];
   sessions: Record<string, SessionSummary>;
+  view: ViewMode;
+  /** Session receiving keyboard/palette actions (single view or active pane). */
   focusedId: string | null;
   newSessionOpen: boolean;
   paletteOpen: boolean;
@@ -23,11 +29,24 @@ export const registryStore = createStore<RegistryState>(() => ({
   ready: false,
   order: [],
   sessions: {},
+  view: "dashboard",
   focusedId: null,
   newSessionOpen: false,
   paletteOpen: false,
   composerInsert: null,
 }));
+
+/** Tell the backend which sessions are on screen (they receive deltas). */
+export function pushVisibleSessions() {
+  const { view, focusedId } = registryStore.getState();
+  const ids =
+    view === "workspace"
+      ? workspaceSessionIds()
+      : view === "session" && focusedId
+        ? [focusedId]
+        : [];
+  void ipc.setVisibleSessions(ids).catch(() => {});
+}
 
 export function useRegistry<T>(selector: (s: RegistryState) => T): T {
   return useStore(registryStore, selector);
@@ -60,9 +79,18 @@ export async function initRegistry() {
   });
 }
 
+/** Open a session full-screen (null → dashboard). */
 export function focusSession(id: string | null) {
-  registryStore.setState({ focusedId: id });
-  void ipc.setFocus(id).catch(() => {});
+  registryStore.setState({
+    focusedId: id,
+    view: id ? "session" : "dashboard",
+  });
+  pushVisibleSessions();
+}
+
+export function openWorkspace() {
+  registryStore.setState({ view: "workspace" });
+  pushVisibleSessions();
 }
 
 export function openNewSession(open: boolean) {

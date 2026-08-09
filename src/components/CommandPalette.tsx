@@ -5,6 +5,7 @@ import { Command } from "cmdk";
 import { useStore } from "zustand";
 import {
   CircleStop,
+  Columns2,
   LayoutGrid,
   OctagonX,
   Plus,
@@ -12,6 +13,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { openProfilesDialog } from "@/stores/profiles";
+import { addSessionToWorkspace } from "@/stores/workspace";
 import * as ipc from "@/lib/ipc";
 import { cn } from "@/lib/cn";
 import { statusColor } from "@/lib/status";
@@ -20,6 +22,7 @@ import {
   insertIntoComposer,
   openNewSession,
   openPalette,
+  openWorkspace,
   useRegistry,
 } from "@/stores/registry";
 import { getOrCreateSessionStore } from "@/stores/session";
@@ -85,6 +88,24 @@ export function CommandPalette() {
               shortcut="Ctrl+D"
               onSelect={() => run(() => focusSession(null))}
             />
+            <PaletteItem
+              icon={<Columns2 size={14} />}
+              label="Open split view"
+              shortcut="Ctrl+G"
+              onSelect={() => run(openWorkspace)}
+            />
+            {focusedId && (
+              <PaletteItem
+                icon={<Columns2 size={14} />}
+                label="Add current session to split view"
+                onSelect={() =>
+                  run(() => {
+                    addSessionToWorkspace(focusedId);
+                    openWorkspace();
+                  })
+                }
+              />
+            )}
             <PaletteItem
               icon={<UserRound size={14} />}
               label="Manage accounts"

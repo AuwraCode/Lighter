@@ -10,6 +10,7 @@ import { PresetDialog } from "@/components/PresetDialog";
 import { ProfilesDialog } from "@/components/ProfilesDialog";
 import { CommandPalette } from "@/components/CommandPalette";
 import { Dashboard } from "@/views/Dashboard";
+import { Workspace } from "@/views/Workspace";
 import { loadPresets } from "@/stores/presets";
 import { loadProfiles } from "@/stores/profiles";
 import {
@@ -17,6 +18,7 @@ import {
   initRegistry,
   openNewSession,
   openPalette,
+  openWorkspace,
   registryStore,
   useRegistry,
 } from "@/stores/registry";
@@ -45,6 +47,7 @@ async function checkCliVersion() {
 
 function App() {
   const focusedId = useRegistry((s) => s.focusedId);
+  const view = useRegistry((s) => s.view);
 
   useEffect(() => {
     void initRegistry();
@@ -73,6 +76,11 @@ function App() {
         openPalette(!registryStore.getState().paletteOpen);
         return;
       }
+      if (e.key === "g" || e.key === "G") {
+        e.preventDefault();
+        openWorkspace();
+        return;
+      }
       const n = Number(e.key);
       if (n >= 1 && n <= 8) {
         const id = registryStore.getState().order[n - 1];
@@ -92,7 +100,9 @@ function App() {
       <div className="flex min-h-0 flex-1">
         <Sidebar />
         <main className="flex min-h-0 flex-1 flex-col">
-          {focusedId ? (
+          {view === "workspace" ? (
+            <Workspace />
+          ) : view === "session" && focusedId ? (
             <SessionView key={focusedId} sessionId={focusedId} />
           ) : (
             <Dashboard />

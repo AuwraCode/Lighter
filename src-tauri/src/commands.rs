@@ -137,9 +137,10 @@ pub fn list_sessions(manager: State<'_, SessionManager>) -> Vec<SessionInfo> {
     manager.list()
 }
 
+/// Single view passes one id; the split view passes every visible pane.
 #[tauri::command]
-pub fn set_focus(manager: State<'_, SessionManager>, session_id: Option<Uuid>) {
-    manager.set_focus(session_id)
+pub fn set_visible_sessions(manager: State<'_, SessionManager>, session_ids: Vec<Uuid>) {
+    manager.set_visible(&session_ids)
 }
 
 #[tauri::command]

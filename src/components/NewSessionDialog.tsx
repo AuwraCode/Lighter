@@ -2,7 +2,13 @@ import { useCallback, useEffect, useState } from "react";
 import { open as openFolder } from "@tauri-apps/plugin-dialog";
 import { Folder, Loader2, X } from "lucide-react";
 import * as ipc from "@/lib/ipc";
-import { focusSession, openNewSession, useRegistry } from "@/stores/registry";
+import {
+  focusSession,
+  openNewSession,
+  registryStore,
+  useRegistry,
+} from "@/stores/registry";
+import { addSessionToWorkspace } from "@/stores/workspace";
 import { profileById, useProfiles } from "@/stores/profiles";
 
 const MODELS = ["haiku", "sonnet", "opus[1m]", "default"];
@@ -65,7 +71,12 @@ export function NewSessionDialog() {
       );
       close();
       setPrompt("");
-      focusSession(info.id);
+      // Creating from the split view drops the session straight into it.
+      if (registryStore.getState().view === "workspace") {
+        addSessionToWorkspace(info.id);
+      } else {
+        focusSession(info.id);
+      }
     } catch (e) {
       setError(String(e));
     } finally {

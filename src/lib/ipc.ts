@@ -74,9 +74,10 @@ export function listSessions(): Promise<SessionInfo[]> {
   return invoke("list_sessions");
 }
 
-/** Exactly one session (or none) is focused; only it receives text deltas. */
-export function setFocus(sessionId: string | null): Promise<void> {
-  return invoke("set_focus", { sessionId });
+/** Only visible sessions receive text deltas (single view: one id; split
+ *  view: all pane ids; dashboard: none). */
+export function setVisibleSessions(sessionIds: string[]): Promise<void> {
+  return invoke("set_visible_sessions", { sessionIds });
 }
 
 /** Subscribe to dashboard summaries; resolves with the current full list. */

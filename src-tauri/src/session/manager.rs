@@ -248,13 +248,14 @@ impl SessionManager {
         }
     }
 
-    /// Exactly one session (or none) is focused; only it receives deltas.
-    pub fn set_focus(&self, focused: Option<Uuid>) {
+    /// Sessions currently visible in the UI (single view: one id; split
+    /// view: every pane). Only visible sessions receive text deltas.
+    pub fn set_visible(&self, visible: &[Uuid]) {
         let sessions = self.sessions.lock().unwrap();
         for (id, handle) in sessions.iter() {
             let _ = handle
                 .tx
-                .send(SessionCommand::SetFocus(Some(*id) == focused));
+                .send(SessionCommand::SetFocus(visible.contains(id)));
         }
     }
 }

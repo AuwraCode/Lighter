@@ -57,7 +57,7 @@ pub fn run() {
             commands::stop_session,
             commands::remove_session,
             commands::list_sessions,
-            commands::set_focus,
+            commands::set_visible_sessions,
             commands::attach_registry,
             commands::list_presets,
             commands::save_preset,
