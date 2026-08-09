@@ -30,7 +30,7 @@ fn generate_normalized_dumps() {
     for name in names {
         let content =
             std::fs::read_to_string(fixtures_dir.join(format!("{name}.ndjson"))).unwrap();
-        let mut state = SessionState::new(Uuid::nil(), "test".into(), "C:/test".into());
+        let mut state = SessionState::new(Uuid::nil(), "test".into(), "C:/test".into(), None);
         let mut seq = 0u64;
         let mut envelopes: Vec<Value> = Vec::new();
 

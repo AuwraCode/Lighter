@@ -80,6 +80,8 @@ pub struct SessionMeta {
     pub slash_commands: Vec<String>,
     pub tools: Vec<String>,
     pub claude_version: String,
+    /// Set when this session runs in an isolated git worktree.
+    pub worktree: Option<crate::worktree::WorktreeMeta>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
@@ -325,6 +327,7 @@ pub struct SessionSummary {
     pub context_window: Option<u64>,
     pub exited_code: Option<i32>,
     pub created_at_ms: u64,
+    pub worktree_branch: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, TS)]

@@ -189,7 +189,8 @@
       "WebSearch",
       "Workflow",
       "Write"
-    ]
+    ],
+    "worktree": null
   },
   "pending_permissions": [
     {

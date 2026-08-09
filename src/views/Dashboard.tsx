@@ -171,7 +171,12 @@ function SessionTileInner({ summary }: { summary: SessionSummary }) {
           onClick={(e) => {
             e.stopPropagation();
             if (gone) {
-              void ipc.removeSession(summary.id).catch(() => {});
+              void ipc
+                .removeSession(summary.id, true)
+                .then((warning) => {
+                  if (warning) console.warn(warning);
+                })
+                .catch(() => {});
               dropSessionStore(summary.id);
             } else {
               void ipc.stopSession(summary.id).catch(() => {});
@@ -191,6 +196,11 @@ function SessionTileInner({ summary }: { summary: SessionSummary }) {
       </div>
 
       <div className="flex items-center gap-2 font-mono text-[10px] text-fg-muted">
+        {summary.worktree_branch && (
+          <span className="truncate text-accent" title={summary.worktree_branch}>
+            ⎇ {summary.worktree_branch.replace(/^lighter\//, "")}
+          </span>
+        )}
         <span>{shortModel(summary.model)}</span>
         <span>·</span>
         <span>${summary.total_cost_usd.toFixed(3)}</span>

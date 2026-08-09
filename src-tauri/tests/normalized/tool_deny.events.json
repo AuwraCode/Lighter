@@ -92,7 +92,8 @@
           "WebSearch",
           "Workflow",
           "Write"
-        ]
+        ],
+        "worktree": null
       },
       "type": "Ready"
     },

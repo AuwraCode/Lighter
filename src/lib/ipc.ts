@@ -60,8 +60,12 @@ export function stopSession(sessionId: string, graceful = true): Promise<void> {
   return invoke("stop_session", { sessionId, graceful });
 }
 
-export function removeSession(sessionId: string): Promise<void> {
-  return invoke("remove_session", { sessionId });
+/** Resolves with a warning string when worktree cleanup was refused. */
+export function removeSession(
+  sessionId: string,
+  cleanupWorktree = false,
+): Promise<string | null> {
+  return invoke("remove_session", { sessionId, cleanupWorktree });
 }
 
 export function listSessions(): Promise<SessionInfo[]> {

@@ -4,6 +4,7 @@ pub mod persistence;
 pub mod presets;
 pub mod protocol;
 pub mod session;
+pub mod worktree;
 
 use session::manager::SessionManager;
 use tauri::Manager;

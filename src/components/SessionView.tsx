@@ -8,6 +8,7 @@ import {
   ArrowLeft,
   Check,
   CircleStop,
+  GitBranch,
   Loader2,
   Send,
   ShieldQuestion,
@@ -123,6 +124,15 @@ export function SessionView({ sessionId }: { sessionId: string }) {
         <span className="max-w-40 shrink-0 truncate font-medium text-fg">
           {meta?.title ?? "Session"}
         </span>
+        {meta?.worktree && (
+          <span
+            className="inline-flex shrink-0 items-center gap-1 rounded bg-accent/10 px-1.5 py-0.5 font-mono text-[10px] text-accent"
+            title={`Isolated worktree: ${meta.worktree.path}`}
+          >
+            <GitBranch size={10} />
+            {meta.worktree.branch}
+          </span>
+        )}
         <span className="w-24 shrink-0">{status}</span>
 
         <ModelSwitcher

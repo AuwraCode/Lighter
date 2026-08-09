@@ -60,6 +60,104 @@ fn config(cwd: &str) -> SessionConfig {
 
 #[test]
 #[ignore = "requires logged-in claude CLI and spends API credits"]
+fn same_repo_second_session_gets_worktree() {
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let _guard = rt.enter();
+
+    // A real repo with one commit.
+    let repo = std::env::temp_dir().join("lighter-e2e-repo");
+    let _ = std::fs::remove_dir_all(&repo);
+    std::fs::create_dir_all(&repo).unwrap();
+    for args in [
+        vec!["init", "-q", "-b", "main"],
+        vec!["config", "user.email", "t@t.local"],
+        vec!["config", "user.name", "t"],
+    ] {
+        assert!(std::process::Command::new("git")
+            .arg("-C")
+            .arg(&repo)
+            .args(&args)
+            .status()
+            .unwrap()
+            .success());
+    }
+    std::fs::write(repo.join("readme.md"), "hi").unwrap();
+    for args in [vec!["add", "."], vec!["commit", "-q", "-m", "init"]] {
+        assert!(std::process::Command::new("git")
+            .arg("-C")
+            .arg(&repo)
+            .args(&args)
+            .status()
+            .unwrap()
+            .success());
+    }
+
+    let manager = SessionManager::default();
+    let cwd = repo.to_str().unwrap();
+
+    // First session: no isolation needed (repo is free).
+    let log1: EventLog = Arc::new(Mutex::new(Vec::new()));
+    let s1 = manager
+        .create(config(cwd), capture_channel(log1.clone()))
+        .unwrap();
+    assert_eq!(
+        dunce::canonicalize(&s1.cwd).unwrap(),
+        dunce::canonicalize(&repo).unwrap(),
+        "first session must use the repo directly"
+    );
+
+    // Second session on the same repo: lands in a lighter/* worktree.
+    let log2: EventLog = Arc::new(Mutex::new(Vec::new()));
+    let s2 = manager
+        .create(config(cwd), capture_channel(log2.clone()))
+        .unwrap();
+    assert_ne!(s2.cwd, s1.cwd, "second session must be isolated");
+    assert!(
+        s2.cwd.contains("worktrees"),
+        "unexpected worktree location: {}",
+        s2.cwd
+    );
+    assert!(std::path::Path::new(&s2.cwd).join("readme.md").exists());
+
+    // Both actually work, and the CLI runs inside the worktree.
+    for (log, id) in [(&log1, s1.id), (&log2, s2.id)] {
+        manager
+            .command(id, SessionCommand::SendUser { text: "Say exactly: OK".into() })
+            .unwrap();
+        assert!(
+            wait_for(log, |e| has_event(e, "TurnCompleted").next().is_some(), Duration::from_secs(120)),
+            "session did not complete"
+        );
+    }
+    {
+        let events = log2.lock().unwrap();
+        let ready = has_event(&events, "Ready").last().unwrap();
+        assert_eq!(
+            dunce::canonicalize(ready["meta"]["cwd"].as_str().unwrap()).unwrap(),
+            dunce::canonicalize(&s2.cwd).unwrap(),
+            "CLI init cwd must be the worktree"
+        );
+        assert!(ready["meta"]["worktree"]["branch"]
+            .as_str()
+            .unwrap()
+            .starts_with("lighter/"));
+    }
+
+    // Cleanup: stop both, remove second with worktree cleanup.
+    for (log, id) in [(&log1, s1.id), (&log2, s2.id)] {
+        manager
+            .command(id, SessionCommand::Stop { graceful: true })
+            .unwrap();
+        assert!(wait_for(log, |e| has_event(e, "Exited").next().is_some(), Duration::from_secs(25)));
+    }
+    let warning = manager.remove(s2.id, true).unwrap();
+    assert!(warning.is_none(), "clean worktree removal warned: {warning:?}");
+    assert!(!std::path::Path::new(&s2.cwd).exists(), "worktree dir must be gone");
+    println!("worktree isolation e2e ok");
+}
+
+#[test]
+#[ignore = "requires logged-in claude CLI and spends API credits"]
 fn multi_session_parallel_with_registry() {
     use std::collections::HashMap;
 
@@ -154,7 +252,7 @@ fn multi_session_parallel_with_registry() {
     println!("registry converged for 3 sessions");
 
     // Removing a session propagates as a registry removal.
-    manager.remove(ids[0]).unwrap();
+    manager.remove(ids[0], false).unwrap();
     let deadline = Instant::now() + Duration::from_secs(5);
     while registry.lock().unwrap().contains_key(&ids[0].to_string()) {
         assert!(Instant::now() < deadline, "removal did not reach registry");

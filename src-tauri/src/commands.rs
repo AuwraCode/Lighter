@@ -113,9 +113,15 @@ pub fn stop_session(
     manager.command(session_id, SessionCommand::Stop { graceful })
 }
 
+/// Returns a human-readable warning when worktree cleanup was refused
+/// (uncommitted changes) — the session itself is removed regardless.
 #[tauri::command]
-pub fn remove_session(manager: State<'_, SessionManager>, session_id: Uuid) -> Result<()> {
-    manager.remove(session_id)
+pub fn remove_session(
+    manager: State<'_, SessionManager>,
+    session_id: Uuid,
+    cleanup_worktree: bool,
+) -> Result<Option<String>> {
+    manager.remove(session_id, cleanup_worktree)
 }
 
 #[tauri::command]

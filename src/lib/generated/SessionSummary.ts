@@ -4,4 +4,4 @@ import type { SessionStatus } from "./SessionStatus";
 /**
  * Lightweight per-session digest streamed to the dashboard at ~4 Hz.
  */
-export type SessionSummary = { id: string, title: string, cwd: string, status: SessionStatus, model: string, permission_mode: string, total_cost_usd: number, turns: number, pending_permissions: number, last_snippet: string, context_used_tokens: bigint | null, context_window: bigint | null, exited_code: number | null, created_at_ms: bigint, };
+export type SessionSummary = { id: string, title: string, cwd: string, status: SessionStatus, model: string, permission_mode: string, total_cost_usd: number, turns: number, pending_permissions: number, last_snippet: string, context_used_tokens: bigint | null, context_window: bigint | null, exited_code: number | null, created_at_ms: bigint, worktree_branch: string | null, };
