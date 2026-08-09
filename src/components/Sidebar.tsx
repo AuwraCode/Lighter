@@ -1,6 +1,6 @@
 import { Columns2, LayoutGrid, Plus } from "lucide-react";
 import { cn } from "@/lib/cn";
-import { statusColor } from "@/lib/status";
+import { statusDotClass } from "@/lib/status";
 import {
   focusSession,
   openNewSession,
@@ -99,7 +99,9 @@ function SidebarRow({
       )}
       title={summary.cwd}
     >
-      <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", statusColor(summary.status))} />
+      <span
+        className={cn("h-1.5 w-1.5 shrink-0 rounded-full", statusDotClass(summary.status))}
+      />
       <span className="min-w-0 flex-1 truncate">{summary.title}</span>
       {summary.pending_permissions > 0 && (
         <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-warning" />

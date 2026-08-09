@@ -18,6 +18,15 @@ export function statusColor(status: SessionStatus): string {
   }
 }
 
+/** Dot classes incl. a pulse while the session is actively doing something. */
+export function statusDotClass(status: SessionStatus): string {
+  const pulse =
+    status === "Working" || status === "Compacting" || status === "Starting"
+      ? " animate-pulse"
+      : "";
+  return statusColor(status) + pulse;
+}
+
 export function statusLabel(status: SessionStatus): string {
   switch (status) {
     case "AwaitingApproval":

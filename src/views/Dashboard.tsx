@@ -17,7 +17,7 @@ import * as ipc from "@/lib/ipc";
 import type { Preset } from "@/lib/generated/Preset";
 import type { SessionRecord } from "@/lib/generated/SessionRecord";
 import type { SessionSummary } from "@/lib/generated/SessionSummary";
-import { statusColor, statusLabel } from "@/lib/status";
+import { statusDotClass, statusLabel } from "@/lib/status";
 import { focusSession, openNewSession, useRegistry } from "@/stores/registry";
 import { dropSessionStore } from "@/stores/session";
 import { editPreset, launchPreset, usePresets } from "@/stores/presets";
@@ -282,7 +282,9 @@ function SessionTileInner({ summary }: { summary: SessionSummary }) {
       )}
     >
       <div className="flex items-center gap-2">
-        <span className={cn("h-2 w-2 shrink-0 rounded-full", statusColor(summary.status))} />
+        <span
+          className={cn("h-2 w-2 shrink-0 rounded-full", statusDotClass(summary.status))}
+        />
         <span className="truncate text-[13px] font-medium">{summary.title}</span>
         {summary.pending_permissions > 0 && (
           <span className="shrink-0 rounded bg-warning/15 px-1.5 py-0.5 text-[10px] font-medium text-warning">

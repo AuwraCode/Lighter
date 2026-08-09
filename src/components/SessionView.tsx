@@ -30,7 +30,8 @@ import {
   prependHistory,
 } from "@/stores/session";
 import { focusSession, registryStore, useRegistry } from "@/stores/registry";
-import { statusColor } from "@/lib/status";
+import { statusDotClass } from "@/lib/status";
+import type { SessionStatus } from "@/lib/generated/SessionStatus";
 import { MemoItemView } from "./TranscriptItems";
 import { AccountChip, ModelSwitcher, ModeSwitcher } from "./SessionControls";
 
@@ -141,7 +142,7 @@ export function SessionView({
         >
           <ArrowLeft size={13} />
         </button>
-        <span className={cn("h-2 w-2 shrink-0 rounded-full", statusColor(status))} />
+        <span className={cn("h-2 w-2 shrink-0 rounded-full", statusDotClass(status))} />
         <span className="max-w-40 shrink-0 truncate font-medium text-fg">
           {meta?.title ?? "Session"}
         </span>
@@ -236,6 +237,10 @@ export function SessionView({
             ),
             Footer: () => (
               <div className="w-full px-4 pb-3">
+                {!exited &&
+                  (status === "Working" ||
+                    status === "Compacting" ||
+                    status === "Starting") && <WorkingIndicator status={status} />}
                 {exited && (
                   <div className="rounded-lg border border-danger/40 bg-danger/10 p-3 text-xs">
                     <div className="font-medium text-danger">
@@ -275,6 +280,30 @@ export function SessionView({
       )}
 
       <Composer sessionId={sessionId} disabled={!!exited} />
+    </div>
+  );
+}
+
+/** Fills the silence between sending and the first token. */
+function WorkingIndicator({ status }: { status: SessionStatus }) {
+  const label =
+    status === "Compacting"
+      ? "Compacting context…"
+      : status === "Starting"
+        ? "Starting session…"
+        : "Claude is working…";
+  return (
+    <div className="flex items-center gap-2.5 py-1 text-xs text-fg-muted">
+      <span className="flex items-center gap-1">
+        {[0, 1, 2].map((i) => (
+          <span
+            key={i}
+            className="h-1.5 w-1.5 animate-bounce rounded-full bg-accent"
+            style={{ animationDelay: `${i * 160}ms` }}
+          />
+        ))}
+      </span>
+      {label}
     </div>
   );
 }

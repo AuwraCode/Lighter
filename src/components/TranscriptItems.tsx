@@ -1,6 +1,7 @@
 // Transcript item renderers: memoized so completed items never re-render.
 
-import { memo, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { AnsiUp } from "ansi_up";
 import {
   Brain,
   Check,
@@ -14,6 +15,34 @@ import { cn } from "@/lib/cn";
 import type { TranscriptItem } from "@/lib/generated/TranscriptItem";
 import type { JsonValue } from "@/lib/generated/serde_json/JsonValue";
 import { Markdown } from "./Markdown";
+
+/** Re-parse streamed markdown at most every 150ms — colors and code
+ *  highlighting appear WHILE the answer streams, without a parse per batch. */
+function useThrottledValue<T>(value: T, ms: number): T {
+  const [v, setV] = useState(value);
+  const last = useRef(0);
+  const timer = useRef<number>(undefined);
+  useEffect(() => {
+    const elapsed = performance.now() - last.current;
+    if (elapsed >= ms) {
+      last.current = performance.now();
+      setV(value);
+    } else {
+      window.clearTimeout(timer.current);
+      timer.current = window.setTimeout(() => {
+        last.current = performance.now();
+        setV(value);
+      }, ms - elapsed);
+    }
+    return () => window.clearTimeout(timer.current);
+  }, [value, ms]);
+  return v;
+}
+
+function StreamingMarkdown({ text }: { text: string }) {
+  const throttled = useThrottledValue(text, 150);
+  return <Markdown text={throttled} />;
+}
 
 export const MemoItemView = memo(ItemViewInner);
 
@@ -33,23 +62,20 @@ function ItemViewInner({
       return (
         <div
           className={cn(
-            "rounded-lg border px-3 py-2 text-sm whitespace-pre-wrap",
+            "rounded-lg border px-3 py-2 text-sm",
             item.injected
-              ? "border-warning/30 bg-warning/5 text-warning"
+              ? "whitespace-pre-wrap border-warning/30 bg-warning/5 text-warning"
               : "border-accent-muted/60 bg-accent/5",
           )}
         >
-          {item.text}
+          {item.injected ? item.text : <Markdown text={item.text} />}
         </div>
       );
     case "AssistantText":
       return (
         <div className={cn("text-sm leading-relaxed", nested)}>
           {streaming ? (
-            <div className="whitespace-pre-wrap">
-              {item.text}
-              <span className="ml-0.5 inline-block h-3.5 w-[2px] animate-pulse bg-accent align-middle" />
-            </div>
+            <StreamingMarkdown text={item.text} />
           ) : (
             <Markdown text={item.text} />
           )}
@@ -197,19 +223,56 @@ function ToolCard({
         <>
           <ToolInput name={name} input={input} />
           {output && (
-            <pre
-              className={cn(
-                "max-h-72 overflow-auto border-t border-border-subtle px-3 py-2",
-                failed ? "text-danger" : "text-fg-secondary",
-              )}
-            >
-              {output.text || "(no output)"}
-              {output.truncated ? "\n… (truncated)" : ""}
-            </pre>
+            <ToolOutputView
+              text={output.text}
+              truncated={output.truncated}
+              failed={failed}
+            />
           )}
         </>
       )}
     </div>
+  );
+}
+
+const ANSI_PATTERN = /\[[0-9;]*m/;
+
+/** Tool output with ANSI colors rendered (test runners, git, linters…). */
+function ToolOutputView({
+  text,
+  truncated,
+  failed,
+}: {
+  text: string;
+  truncated: boolean;
+  failed: boolean;
+}) {
+  const html = useMemo(() => {
+    if (!ANSI_PATTERN.test(text)) return null;
+    const ansi = new AnsiUp();
+    ansi.use_classes = false;
+    return ansi.ansi_to_html(text); // escapes HTML, converts SGR to spans
+  }, [text]);
+
+  const cls = cn(
+    "max-h-72 overflow-auto border-t border-border-subtle px-3 py-2",
+    failed ? "text-danger" : "text-fg-secondary",
+  );
+  if (html) {
+    return (
+      <pre
+        className={cls}
+        dangerouslySetInnerHTML={{
+          __html: html + (truncated ? "\n… (truncated)" : ""),
+        }}
+      />
+    );
+  }
+  return (
+    <pre className={cls}>
+      {text || "(no output)"}
+      {truncated ? "\n… (truncated)" : ""}
+    </pre>
   );
 }
 

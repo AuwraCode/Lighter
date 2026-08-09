@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import * as ipc from "@/lib/ipc";
-import { statusColor } from "@/lib/status";
+import { statusColor, statusDotClass } from "@/lib/status";
 import { SessionView } from "@/components/SessionView";
 import { ModeSwitcher } from "@/components/SessionControls";
 import {
@@ -444,7 +444,7 @@ function PaneChrome({
       title="Drag to rearrange"
     >
       <GripVertical size={12} className="shrink-0 text-fg-muted" />
-      <span className={cn("h-2 w-2 shrink-0 rounded-full", statusColor(status))} />
+      <span className={cn("h-2 w-2 shrink-0 rounded-full", statusDotClass(status))} />
       <span className="min-w-0 flex-1 truncate font-medium">
         {meta?.title ?? "Session"}
       </span>
