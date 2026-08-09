@@ -18,8 +18,12 @@ use crate::session::events::{
 use crate::session::manager::SessionManager;
 use crate::session::router::SessionCommand;
 
+// NOTE: commands that spawn processes or shell out to git are async on
+// purpose. Sync commands execute on the window's event-loop thread, where
+// blocking work freezes the UI and a panic aborts the whole app (observed:
+// tokio::spawn without a runtime context → STATUS_STACK_BUFFER_OVERRUN).
 #[tauri::command]
-pub fn create_session(
+pub async fn create_session(
     manager: State<'_, SessionManager>,
     config: SessionConfig,
     channel: Channel<Batch>,
@@ -119,7 +123,7 @@ pub fn stop_session(
 /// Returns a human-readable warning when worktree cleanup was refused
 /// (uncommitted changes) — the session itself is removed regardless.
 #[tauri::command]
-pub fn remove_session(
+pub async fn remove_session(
     manager: State<'_, SessionManager>,
     session_id: Uuid,
     cleanup_worktree: bool,
@@ -179,7 +183,7 @@ pub fn delete_session_record(records: State<'_, Arc<Records>>, record_id: Uuid) 
 /// Respawn a recorded session with `--resume`; the CLI restores the model's
 /// context from its own transcript, we restore cost from the record.
 #[tauri::command]
-pub fn resume_session(
+pub async fn resume_session(
     manager: State<'_, SessionManager>,
     records: State<'_, Arc<Records>>,
     record_id: Uuid,

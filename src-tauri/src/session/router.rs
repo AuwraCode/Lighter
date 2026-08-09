@@ -138,7 +138,7 @@ pub fn start(
     // stdout reader: NDJSON lines with a hard length cap.
     {
         let io_tx = io_tx.clone();
-        tokio::spawn(async move {
+        tauri::async_runtime::spawn(async move {
             let mut framed = FramedRead::new(
                 stdout,
                 LinesCodec::new_with_max_length(MAX_LINE_BYTES),
@@ -158,7 +158,7 @@ pub fn start(
     // stderr reader.
     {
         let io_tx = io_tx.clone();
-        tokio::spawn(async move {
+        tauri::async_runtime::spawn(async move {
             let mut lines = BufReader::new(stderr).lines();
             while let Ok(Some(line)) = lines.next_line().await {
                 if io_tx.send(IoMsg::Stderr(line)).is_err() {
@@ -174,7 +174,7 @@ pub fn start(
         let mut stdin = stdin;
         let mut ctrl_rx = ctrl_rx;
         let mut data_rx = data_rx;
-        tokio::spawn(async move {
+        tauri::async_runtime::spawn(async move {
             loop {
                 let line = tokio::select! {
                     biased;
@@ -197,7 +197,7 @@ pub fn start(
     // exit waiter: owns the Child.
     {
         let io_tx = io_tx.clone();
-        tokio::spawn(async move {
+        tauri::async_runtime::spawn(async move {
             let code = child.wait().await.ok().and_then(|s| s.code());
             let _ = io_tx.send(IoMsg::Exited(code));
         });
@@ -226,7 +226,7 @@ pub fn start(
         last_summary: None,
     };
 
-    tokio::spawn(router.run(cmd_rx, io_rx, initial_prompt));
+    tauri::async_runtime::spawn(router.run(cmd_rx, io_rx, initial_prompt));
     cmd_tx
 }
 
@@ -525,7 +525,7 @@ impl Router {
         self.pending_ctrl.insert(request_id.clone(), pending);
 
         let io_tx = self.io_tx.clone();
-        tokio::spawn(async move {
+        tauri::async_runtime::spawn(async move {
             tokio::time::sleep(CONTROL_TIMEOUT).await;
             let _ = io_tx.send(IoMsg::CtrlTimeout(request_id));
         });
@@ -556,7 +556,7 @@ impl Router {
             if !self.kill_scheduled {
                 self.kill_scheduled = true;
                 let io_tx = self.io_tx.clone();
-                tokio::spawn(async move {
+                tauri::async_runtime::spawn(async move {
                     tokio::time::sleep(GRACEFUL_KILL_DEADLINE).await;
                     let _ = io_tx.send(IoMsg::KillDeadline);
                 });
@@ -622,7 +622,7 @@ impl Router {
                     if !self.flush_armed {
                         self.flush_armed = true;
                         let io_tx = self.io_tx.clone();
-                        tokio::spawn(async move {
+                        tauri::async_runtime::spawn(async move {
                             tokio::time::sleep(DELTA_FLUSH_INTERVAL).await;
                             let _ = io_tx.send(IoMsg::FlushDeltas);
                         });

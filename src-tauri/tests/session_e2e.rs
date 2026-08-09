@@ -58,6 +58,59 @@ fn config(cwd: &str) -> SessionConfig {
     }
 }
 
+/// Regression: sync tauri commands run on the window's event-loop thread,
+/// which has NO ambient tokio runtime. Creating a session there used to
+/// panic in tokio::spawn and abort the whole app (STATUS_STACK_BUFFER_OVERRUN).
+/// The router now spawns via tauri::async_runtime, so creating a session from
+/// a plain OS thread must work end to end.
+#[test]
+#[ignore = "requires logged-in claude CLI and spends API credits"]
+fn create_session_from_non_runtime_thread() {
+    let tmp = std::env::temp_dir().join("lighter-e2e-mainthread");
+    let _ = std::fs::remove_dir_all(&tmp);
+    std::fs::create_dir_all(&tmp).unwrap();
+
+    let manager = std::sync::Arc::new(SessionManager::default());
+    let log: EventLog = Arc::new(Mutex::new(Vec::new()));
+
+    // Plain thread: no tokio context whatsoever — like the wndproc path.
+    let (manager2, log2, cwd) = (
+        manager.clone(),
+        log.clone(),
+        tmp.to_str().unwrap().to_string(),
+    );
+    let id = std::thread::spawn(move || {
+        let info = manager2
+            .create(config(&cwd), capture_channel(log2))
+            .expect("create from non-runtime thread");
+        manager2
+            .command(info.id, SessionCommand::SendUser { text: "Say exactly: MAINTHREAD".into() })
+            .unwrap();
+        info.id
+    })
+    .join()
+    .expect("thread must not panic");
+
+    assert!(
+        wait_for(&log, |e| has_event(e, "TurnCompleted").next().is_some(), Duration::from_secs(90)),
+        "session created off-runtime did not complete a turn"
+    );
+    {
+        let events = log.lock().unwrap();
+        let texts: Vec<&str> = events
+            .iter()
+            .filter(|e| e["type"] == "ItemCompleted" && e["item"]["kind"] == "AssistantText")
+            .filter_map(|e| e["item"]["text"].as_str())
+            .collect();
+        assert!(texts.iter().any(|t| t.contains("MAINTHREAD")), "{texts:?}");
+    }
+    manager
+        .command(id, SessionCommand::Stop { graceful: true })
+        .unwrap();
+    assert!(wait_for(&log, |e| has_event(e, "Exited").next().is_some(), Duration::from_secs(25)));
+    println!("non-runtime-thread create ok");
+}
+
 #[test]
 #[ignore = "requires logged-in claude CLI and spends API credits"]
 fn resume_restores_context_history_and_cost() {
