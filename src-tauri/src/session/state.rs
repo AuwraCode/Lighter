@@ -68,6 +68,7 @@ impl SessionState {
         title: String,
         cwd: String,
         worktree: Option<crate::worktree::WorktreeMeta>,
+        claude_config_dir: Option<String>,
     ) -> Self {
         SessionState {
             meta: SessionMeta {
@@ -80,6 +81,7 @@ impl SessionState {
                 tools: Vec::new(),
                 claude_version: String::new(),
                 worktree,
+                claude_config_dir,
             },
             status: SessionStatus::Starting,
             items: Vec::new(),
@@ -138,6 +140,7 @@ impl SessionState {
             exited_code: self.exited.as_ref().and_then(|e| e.code),
             created_at_ms: self.created_at_ms,
             worktree_branch: self.meta.worktree.as_ref().map(|w| w.branch.clone()),
+            claude_config_dir: self.meta.claude_config_dir.clone(),
         }
     }
 

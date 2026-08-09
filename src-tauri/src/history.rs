@@ -12,7 +12,10 @@ use crate::protocol::inbound::parse_value;
 use crate::session::events::TranscriptItem;
 use crate::session::state::SessionState;
 
-fn claude_config_dir() -> PathBuf {
+fn claude_config_dir(explicit: Option<&str>) -> PathBuf {
+    if let Some(dir) = explicit {
+        return PathBuf::from(dir);
+    }
     if let Some(dir) = std::env::var_os("CLAUDE_CONFIG_DIR") {
         return PathBuf::from(dir);
     }
@@ -27,8 +30,8 @@ fn cwd_slug(cwd: &str) -> String {
     cwd.replace([':', '\\', '/'], "-")
 }
 
-fn transcript_path(cwd: &str, session_id: Uuid) -> Option<PathBuf> {
-    let projects = claude_config_dir().join("projects");
+fn transcript_path(cwd: &str, session_id: Uuid, config_dir: Option<&str>) -> Option<PathBuf> {
+    let projects = claude_config_dir(config_dir).join("projects");
     let direct = projects
         .join(cwd_slug(cwd))
         .join(format!("{session_id}.jsonl"));
@@ -46,13 +49,17 @@ fn transcript_path(cwd: &str, session_id: Uuid) -> Option<PathBuf> {
     None
 }
 
-pub fn load_history(cwd: &str, session_id: Uuid) -> Result<Vec<TranscriptItem>> {
-    let path = transcript_path(cwd, session_id).ok_or_else(|| {
+pub fn load_history(
+    cwd: &str,
+    session_id: Uuid,
+    config_dir: Option<String>,
+) -> Result<Vec<TranscriptItem>> {
+    let path = transcript_path(cwd, session_id, config_dir.as_deref()).ok_or_else(|| {
         Error::Control("no transcript found for this session on disk".into())
     })?;
     let content = std::fs::read_to_string(&path)?;
 
-    let mut state = SessionState::new(session_id, String::new(), cwd.to_string(), None);
+    let mut state = SessionState::new(session_id, String::new(), cwd.to_string(), None, None);
     for line in content.lines().filter(|l| !l.trim().is_empty()) {
         let Ok(mut value) = serde_json::from_str::<Value>(line) else {
             continue;

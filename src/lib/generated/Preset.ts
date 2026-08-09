@@ -4,4 +4,8 @@ export type Preset = { id: string, name: string, cwd: string, model: string | nu
 /**
  * "auto" (isolate when the repo is busy) | "always" | "never".
  */
-worktree_policy: string, created_at_ms: bigint, };
+worktree_policy: string, 
+/**
+ * Account profile to launch with (None = the default profile).
+ */
+profile_id: string | null, created_at_ms: bigint, };

@@ -105,6 +105,7 @@ export function resumeSession(recordId: string): Promise<SessionInfo> {
 export function loadHistory(
   sessionId: string,
   cwd: string,
+  claudeConfigDir: string | null,
 ): Promise<TranscriptItem[]> {
-  return invoke("load_history", { sessionId, cwd });
+  return invoke("load_history", { sessionId, cwd, claudeConfigDir });
 }

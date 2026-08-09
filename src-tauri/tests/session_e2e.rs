@@ -58,6 +58,61 @@ fn config(cwd: &str) -> SessionConfig {
     }
 }
 
+/// The claude_config_dir in SessionConfig must reach the child as
+/// CLAUDE_CONFIG_DIR: pointed at an EMPTY dir (no credentials), the session
+/// must fail to authenticate instead of silently using the default account.
+#[test]
+#[ignore = "requires logged-in claude CLI"]
+fn config_dir_selects_account() {
+    let tmp = std::env::temp_dir().join("lighter-e2e-profile");
+    let empty_config = std::env::temp_dir().join("lighter-e2e-empty-config");
+    let _ = std::fs::remove_dir_all(&tmp);
+    let _ = std::fs::remove_dir_all(&empty_config);
+    std::fs::create_dir_all(&tmp).unwrap();
+    std::fs::create_dir_all(&empty_config).unwrap();
+
+    let manager = SessionManager::default();
+    let log: EventLog = Arc::new(Mutex::new(Vec::new()));
+    let mut cfg = config(tmp.to_str().unwrap());
+    cfg.claude_config_dir = Some(empty_config.to_string_lossy().to_string());
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let _guard = rt.enter();
+    let info = manager
+        .create(cfg, capture_channel(log.clone()))
+        .expect("spawn should succeed; auth fails later");
+    manager
+        .command(info.id, SessionCommand::SendUser { text: "Say exactly: LEAK".into() })
+        .unwrap();
+
+    // Expect a terminal failure (error result or process exit), never a
+    // successful answer — that would mean the env var was ignored.
+    let failed = wait_for(
+        &log,
+        |e| {
+            e.iter().any(|ev| {
+                ev["type"] == "Exited"
+                    || (ev["type"] == "TurnCompleted" && ev["stats"]["is_error"] == true)
+            })
+        },
+        Duration::from_secs(60),
+    );
+    let answered = {
+        let events = log.lock().unwrap();
+        events.iter().any(|e| {
+            e["type"] == "ItemCompleted"
+                && e["item"]["kind"] == "AssistantText"
+                && e["item"]["text"].as_str().unwrap_or("").contains("LEAK")
+        })
+    };
+    assert!(failed, "no auth failure surfaced within 60s");
+    assert!(!answered, "session answered despite empty config dir — env var ignored");
+    manager
+        .command(info.id, SessionCommand::Stop { graceful: false })
+        .unwrap();
+    println!("config-dir account selection ok");
+}
+
 /// Regression: sync tauri commands run on the window's event-loop thread,
 /// which has NO ambient tokio runtime. Creating a session there used to
 /// panic in tokio::spawn and abort the whole app (STATUS_STACK_BUFFER_OVERRUN).
@@ -145,7 +200,8 @@ fn resume_restores_context_history_and_cost() {
     manager.remove(s1.id, false).unwrap();
 
     // Transcript backfill from the CLI's own JSONL.
-    let history = lighter_lib::history::load_history(cwd, s1.id).expect("history backfill");
+    let history =
+        lighter_lib::history::load_history(cwd, s1.id, None).expect("history backfill");
     let history_text = serde_json::to_string(&history).unwrap();
     assert!(
         history_text.contains("MANGO"),

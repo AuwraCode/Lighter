@@ -7,9 +7,11 @@ import { Sidebar } from "@/components/Sidebar";
 import { SessionView } from "@/components/SessionView";
 import { NewSessionDialog } from "@/components/NewSessionDialog";
 import { PresetDialog } from "@/components/PresetDialog";
+import { ProfilesDialog } from "@/components/ProfilesDialog";
 import { CommandPalette } from "@/components/CommandPalette";
 import { Dashboard } from "@/views/Dashboard";
 import { loadPresets } from "@/stores/presets";
+import { loadProfiles } from "@/stores/profiles";
 import {
   focusSession,
   initRegistry,
@@ -47,6 +49,7 @@ function App() {
   useEffect(() => {
     void initRegistry();
     void loadPresets();
+    void loadProfiles();
     void checkCliVersion();
   }, []);
 
@@ -98,6 +101,7 @@ function App() {
       </div>
       <NewSessionDialog />
       <PresetDialog />
+      <ProfilesDialog />
       <CommandPalette />
       <Toaster
         theme="dark"

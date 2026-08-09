@@ -5,4 +5,8 @@ export type SessionMeta = { session_id: string, title: string, cwd: string, mode
 /**
  * Set when this session runs in an isolated git worktree.
  */
-worktree: WorktreeMeta | null, };
+worktree: WorktreeMeta | null, 
+/**
+ * The account's config dir this session was spawned with (None = default).
+ */
+claude_config_dir: string | null, };

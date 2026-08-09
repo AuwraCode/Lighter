@@ -82,6 +82,8 @@ pub struct SessionMeta {
     pub claude_version: String,
     /// Set when this session runs in an isolated git worktree.
     pub worktree: Option<crate::worktree::WorktreeMeta>,
+    /// The account's config dir this session was spawned with (None = default).
+    pub claude_config_dir: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
@@ -233,6 +235,9 @@ pub struct SessionConfig {
     pub resume_session_id: Option<String>,
     /// "auto" | "always" | "never" — git worktree isolation (phase 7).
     pub worktree_policy: Option<String>,
+    /// CLAUDE_CONFIG_DIR for the spawned process — selects the account.
+    /// None = system default (~/.claude).
+    pub claude_config_dir: Option<String>,
 }
 
 impl Default for SessionConfig {
@@ -249,6 +254,7 @@ impl Default for SessionConfig {
             initial_prompt: None,
             resume_session_id: None,
             worktree_policy: None,
+            claude_config_dir: None,
         }
     }
 }
@@ -328,6 +334,7 @@ pub struct SessionSummary {
     pub exited_code: Option<i32>,
     pub created_at_ms: u64,
     pub worktree_branch: Option<String>,
+    pub claude_config_dir: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, TS)]

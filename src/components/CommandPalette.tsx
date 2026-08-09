@@ -9,7 +9,9 @@ import {
   OctagonX,
   Plus,
   SlashSquare,
+  UserRound,
 } from "lucide-react";
+import { openProfilesDialog } from "@/stores/profiles";
 import * as ipc from "@/lib/ipc";
 import { cn } from "@/lib/cn";
 import { statusColor } from "@/lib/status";
@@ -82,6 +84,11 @@ export function CommandPalette() {
               label="Go to dashboard"
               shortcut="Ctrl+D"
               onSelect={() => run(() => focusSession(null))}
+            />
+            <PaletteItem
+              icon={<UserRound size={14} />}
+              label="Manage accounts"
+              onSelect={() => run(() => openProfilesDialog(true))}
             />
             {focusedId && (
               <>

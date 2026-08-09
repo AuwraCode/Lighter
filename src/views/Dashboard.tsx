@@ -1,6 +1,17 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { History, Loader2, Pencil, Play, Plus, Trash2, X, Zap } from "lucide-react";
+import {
+  History,
+  Loader2,
+  Pencil,
+  Play,
+  Plus,
+  Trash2,
+  UserRound,
+  X,
+  Zap,
+} from "lucide-react";
+import { openProfilesDialog } from "@/stores/profiles";
 import { cn } from "@/lib/cn";
 import * as ipc from "@/lib/ipc";
 import type { Preset } from "@/lib/generated/Preset";
@@ -29,12 +40,20 @@ export function Dashboard() {
     <div className="min-h-0 flex-1 overflow-y-auto p-5">
       <div className="mb-3 flex items-center justify-between">
         <h1 className="text-sm font-semibold tracking-tight">Presets</h1>
-        <button
-          onClick={() => editPreset("new")}
-          className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-xs text-fg-secondary hover:bg-hover hover:text-fg"
-        >
-          <Plus size={12} /> New preset
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => openProfilesDialog(true)}
+            className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-xs text-fg-secondary hover:bg-hover hover:text-fg"
+          >
+            <UserRound size={12} /> Accounts
+          </button>
+          <button
+            onClick={() => editPreset("new")}
+            className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-xs text-fg-secondary hover:bg-hover hover:text-fg"
+          >
+            <Plus size={12} /> New preset
+          </button>
+        </div>
       </div>
       {presets.length === 0 ? (
         <div className="mb-6 rounded-lg border border-dashed border-border px-4 py-3 text-xs text-fg-muted">

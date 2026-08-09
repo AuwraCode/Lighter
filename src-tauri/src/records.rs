@@ -30,6 +30,9 @@ pub struct SessionRecord {
     pub turns: u32,
     pub last_snippet: String,
     pub worktree_branch: Option<String>,
+    /// Account config dir the session ran with — resume must reuse it (the
+    /// CLI transcript lives there too).
+    pub claude_config_dir: Option<String>,
     pub created_at_ms: u64,
     pub last_active_ms: u64,
 }
@@ -81,6 +84,7 @@ impl Records {
             turns: summary.turns,
             last_snippet: summary.last_snippet.clone(),
             worktree_branch: summary.worktree_branch.clone(),
+            claude_config_dir: summary.claude_config_dir.clone(),
             created_at_ms: summary.created_at_ms,
             last_active_ms: now_ms(),
         };
@@ -183,6 +187,7 @@ mod tests {
             exited_code: None,
             created_at_ms: 1,
             worktree_branch: None,
+            claude_config_dir: None,
         }
     }
 

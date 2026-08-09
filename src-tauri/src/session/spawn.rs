@@ -112,6 +112,10 @@ pub fn spawn_session(session_id: Uuid, cfg: &SessionConfig) -> Result<Spawned> {
         .stderr(Stdio::piped())
         // Backstop only — the Job Object is the real cleanup mechanism.
         .kill_on_drop(true);
+    // Account selection: each Claude config dir carries its own credentials.
+    if let Some(dir) = &cfg.claude_config_dir {
+        cmd.env("CLAUDE_CONFIG_DIR", dir);
+    }
     #[cfg(windows)]
     {
         cmd.creation_flags(CREATE_NO_WINDOW);

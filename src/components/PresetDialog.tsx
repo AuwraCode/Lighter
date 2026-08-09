@@ -8,6 +8,7 @@ import {
   savePreset,
   usePresets,
 } from "@/stores/presets";
+import { useProfiles } from "@/stores/profiles";
 
 const MODELS = ["", "haiku", "sonnet", "opus[1m]", "default"];
 const MODES = ["", "default", "plan", "acceptEdits", "auto", "dontAsk", "bypassPermissions"];
@@ -27,6 +28,7 @@ function blank(): Preset {
     append_system_prompt: null,
     initial_prompt: null,
     worktree_policy: "auto",
+    profile_id: null,
     created_at_ms: 0n as unknown as bigint,
   };
 }
@@ -34,6 +36,7 @@ function blank(): Preset {
 export function PresetDialog() {
   const editing = usePresets((s) => s.editing);
   const presets = usePresets((s) => s.presets);
+  const profiles = useProfiles((s) => s.profiles);
   const [draft, setDraft] = useState<Preset>(blank());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -169,6 +172,21 @@ export function PresetDialog() {
               options={EFFORTS}
               onChange={(v) => set("effort", v || null)}
             />
+            <div className="flex-1">
+              <label className="mb-1 block text-fg-secondary">Account</label>
+              <select
+                value={draft.profile_id ?? ""}
+                onChange={(e) => set("profile_id", e.target.value || null)}
+                className="w-full rounded-md border border-border bg-surface px-2 py-2"
+              >
+                <option value="">(default)</option>
+                {profiles.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div className="flex gap-3">

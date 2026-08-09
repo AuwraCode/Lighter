@@ -10,6 +10,7 @@ use std::sync::Arc;
 
 use crate::error::{Error, Result};
 use crate::presets::{Preset, Presets};
+use crate::profiles::{Profile, Profiles, ProfilesInfo};
 use crate::records::{Records, SessionRecord};
 use crate::session::events::{
     Batch, PermissionDecisionDto, RegistryBatch, SessionConfig, SessionInfo, SessionSnapshot,
@@ -205,6 +206,8 @@ pub async fn resume_session(
         model: (!record.model.is_empty()).then(|| record.model.clone()),
         resume_session_id: Some(record.id.to_string()),
         worktree_policy: Some("never".into()),
+        // Same account as the original run — its config dir holds the transcript.
+        claude_config_dir: record.claude_config_dir.clone(),
         ..Default::default()
     };
     manager.create_with_base_cost(cfg, channel, record.total_cost_usd)
@@ -212,10 +215,59 @@ pub async fn resume_session(
 
 /// Best-effort transcript backfill from the CLI's own JSONL files.
 #[tauri::command]
-pub async fn load_history(session_id: Uuid, cwd: String) -> Result<Vec<TranscriptItem>> {
-    tauri::async_runtime::spawn_blocking(move || crate::history::load_history(&cwd, session_id))
+pub async fn load_history(
+    session_id: Uuid,
+    cwd: String,
+    claude_config_dir: Option<String>,
+) -> Result<Vec<TranscriptItem>> {
+    tauri::async_runtime::spawn_blocking(move || {
+        crate::history::load_history(&cwd, session_id, claude_config_dir)
+    })
+    .await
+    .map_err(|e| Error::Control(e.to_string()))?
+}
+
+// ---------------------------------------------------------------------------
+// account profiles
+
+#[tauri::command]
+pub fn list_profiles(profiles: State<'_, Profiles>) -> ProfilesInfo {
+    profiles.info()
+}
+
+#[tauri::command]
+pub fn save_profile(profiles: State<'_, Profiles>, profile: Profile) -> Result<Profile> {
+    profiles.save(profile)
+}
+
+#[tauri::command]
+pub fn delete_profile(profiles: State<'_, Profiles>, profile_id: Uuid) -> Result<()> {
+    profiles.delete(profile_id)
+}
+
+#[tauri::command]
+pub fn set_default_profile(profiles: State<'_, Profiles>, profile_id: Uuid) -> Result<()> {
+    profiles.set_default(profile_id)
+}
+
+/// Home-dir scan for `.claude*` dirs with credentials not yet registered.
+#[tauri::command]
+pub fn discover_profiles(profiles: State<'_, Profiles>) -> Vec<Profile> {
+    profiles.discover()
+}
+
+/// `claude auth status --json` for a config dir (None = system default).
+#[tauri::command]
+pub async fn profile_auth_status(config_dir: Option<String>) -> Result<serde_json::Value> {
+    tauri::async_runtime::spawn_blocking(move || crate::profiles::auth_status(config_dir))
         .await
         .map_err(|e| Error::Control(e.to_string()))?
+}
+
+/// Opens a console running `claude auth login` for the profile's config dir.
+#[tauri::command]
+pub fn open_login_terminal(config_dir: Option<String>) -> Result<()> {
+    crate::profiles::open_login_terminal(config_dir)
 }
 
 /// The CLI version the protocol fixtures were captured against.

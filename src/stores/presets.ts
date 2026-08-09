@@ -3,6 +3,7 @@ import { useStore } from "zustand";
 import { invoke } from "@tauri-apps/api/core";
 import type { Preset } from "@/lib/generated/Preset";
 import { focusSession } from "./registry";
+import { defaultProfile, profileById } from "./profiles";
 import * as ipc from "@/lib/ipc";
 
 interface PresetsState {
@@ -41,6 +42,8 @@ export function editPreset(id: string | null) {
 
 /** One click on the dashboard: preset → running, focused session. */
 export async function launchPreset(preset: Preset) {
+  // Deleted profiles fall back to the default account.
+  const profile = profileById(preset.profile_id) ?? defaultProfile();
   const info = await ipc.createSession(
     {
       cwd: preset.cwd,
@@ -54,6 +57,7 @@ export async function launchPreset(preset: Preset) {
       initial_prompt: preset.initial_prompt,
       resume_session_id: null,
       worktree_policy: preset.worktree_policy,
+      claude_config_dir: profile?.config_dir ?? null,
     },
     () => {},
   );

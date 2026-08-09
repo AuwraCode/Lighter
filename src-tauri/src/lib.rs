@@ -3,6 +3,7 @@ pub mod error;
 pub mod history;
 pub mod persistence;
 pub mod presets;
+pub mod profiles;
 pub mod protocol;
 pub mod records;
 pub mod session;
@@ -39,7 +40,8 @@ pub fn run() {
             let dir = app.path().app_config_dir()?;
             let store = persistence::Store::new(dir);
             let records = Arc::new(records::Records::load(store.clone()));
-            app.manage(presets::Presets::load(store));
+            app.manage(presets::Presets::load(store.clone()));
+            app.manage(profiles::Profiles::load(store));
             app.manage(records.clone());
             app.manage(SessionManager::new(records));
             Ok(())
@@ -65,6 +67,13 @@ pub fn run() {
             commands::resume_session,
             commands::load_history,
             commands::get_app_info,
+            commands::list_profiles,
+            commands::save_profile,
+            commands::delete_profile,
+            commands::set_default_profile,
+            commands::discover_profiles,
+            commands::profile_auth_status,
+            commands::open_login_terminal,
         ])
         .on_window_event(|window, event| {
             // Closing the window gracefully stops every session first so CLIs

@@ -31,6 +31,9 @@ pub struct Preset {
     /// "auto" (isolate when the repo is busy) | "always" | "never".
     #[serde(default = "default_worktree_policy")]
     pub worktree_policy: String,
+    /// Account profile to launch with (None = the default profile).
+    #[serde(default)]
+    pub profile_id: Option<Uuid>,
     #[serde(default)]
     pub created_at_ms: u64,
 }
@@ -124,6 +127,7 @@ mod tests {
             append_system_prompt: None,
             initial_prompt: None,
             worktree_policy: "auto".into(),
+            profile_id: None,
             created_at_ms: 0,
         }
     }

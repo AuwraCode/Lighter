@@ -154,6 +154,7 @@ impl SessionManager {
             title.clone(),
             cfg.cwd.clone(),
             worktree_meta.clone(),
+            cfg.claude_config_dir.clone(),
         );
         if base_cost > 0.0 {
             state.set_base_cost(base_cost);

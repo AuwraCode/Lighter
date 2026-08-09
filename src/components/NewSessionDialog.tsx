@@ -3,16 +3,20 @@ import { open as openFolder } from "@tauri-apps/plugin-dialog";
 import { Folder, Loader2, X } from "lucide-react";
 import * as ipc from "@/lib/ipc";
 import { focusSession, openNewSession, useRegistry } from "@/stores/registry";
+import { profileById, useProfiles } from "@/stores/profiles";
 
 const MODELS = ["haiku", "sonnet", "opus[1m]", "default"];
 const MODES = ["default", "plan", "acceptEdits", "auto", "dontAsk", "bypassPermissions"];
 
 export function NewSessionDialog() {
   const open = useRegistry((s) => s.newSessionOpen);
+  const profiles = useProfiles((s) => s.profiles);
+  const defaultProfileId = useProfiles((s) => s.defaultProfileId);
   const [cwd, setCwd] = useState("");
   const [title, setTitle] = useState("");
   const [model, setModel] = useState("default");
   const [mode, setMode] = useState("default");
+  const [profileId, setProfileId] = useState<string>("");
   const [prompt, setPrompt] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -21,8 +25,9 @@ export function NewSessionDialog() {
     if (open) {
       setError(null);
       setBusy(false);
+      setProfileId(defaultProfileId ?? "");
     }
-  }, [open]);
+  }, [open, defaultProfileId]);
 
   const close = useCallback(() => openNewSession(false), []);
 
@@ -52,6 +57,7 @@ export function NewSessionDialog() {
           initial_prompt: prompt.trim() || null,
           resume_session_id: null,
           worktree_policy: null,
+          claude_config_dir: profileById(profileId)?.config_dir ?? null,
         },
         // SessionView attaches on mount and hydrates from the snapshot;
         // nothing to do with pre-attach batches.
@@ -65,7 +71,7 @@ export function NewSessionDialog() {
     } finally {
       setBusy(false);
     }
-  }, [cwd, title, model, mode, prompt, close]);
+  }, [cwd, title, model, mode, prompt, profileId, close]);
 
   if (!open) return null;
 
@@ -136,6 +142,20 @@ export function NewSessionDialog() {
               >
                 {MODES.map((m) => (
                   <option key={m}>{m}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex-1">
+              <label className="mb-1 block text-fg-secondary">Account</label>
+              <select
+                value={profileId}
+                onChange={(e) => setProfileId(e.target.value)}
+                className="w-full rounded-md border border-border bg-surface px-2 py-2"
+              >
+                {profiles.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
                 ))}
               </select>
             </div>

@@ -153,6 +153,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
           disabled={!!exited}
           onChange={changeMode}
         />
+        <AccountChip handshake={handshake} />
 
         {attachError && (
           <span className="truncate text-danger" title={attachError}>
@@ -254,6 +255,7 @@ function LoadHistoryButton({ sessionId }: { sessionId: string }) {
   const store = getOrCreateSessionStore(sessionId);
   const historyLoaded = useStore(store, (s) => s.historyLoaded);
   const cwd = useStore(store, (s) => s.meta?.cwd ?? "");
+  const configDir = useStore(store, (s) => s.meta?.claude_config_dir ?? null);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
 
@@ -262,7 +264,7 @@ function LoadHistoryButton({ sessionId }: { sessionId: string }) {
   const load = async () => {
     setBusy(true);
     try {
-      const history = await ipc.loadHistory(sessionId, cwd);
+      const history = await ipc.loadHistory(sessionId, cwd, configDir);
       prependHistory(store, history);
     } catch {
       setFailed(true);
@@ -284,6 +286,20 @@ function LoadHistoryButton({ sessionId }: { sessionId: string }) {
       )}
       Load earlier conversation
     </button>
+  );
+}
+
+/** Which account this session actually runs as (from the handshake). */
+function AccountChip({ handshake }: { handshake: HandshakeInfo | null }) {
+  const account = handshake?.account as { email?: string } | null;
+  if (!account?.email) return null;
+  return (
+    <span
+      className="hidden shrink-0 truncate text-[10px] text-fg-muted xl:inline"
+      title={`Signed in as ${account.email}`}
+    >
+      {account.email}
+    </span>
   );
 }
 

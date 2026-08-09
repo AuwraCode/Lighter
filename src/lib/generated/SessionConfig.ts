@@ -13,4 +13,9 @@ resume_session_id: string | null,
 /**
  * "auto" | "always" | "never" — git worktree isolation (phase 7).
  */
-worktree_policy: string | null, };
+worktree_policy: string | null, 
+/**
+ * CLAUDE_CONFIG_DIR for the spawned process — selects the account.
+ * None = system default (~/.claude).
+ */
+claude_config_dir: string | null, };
