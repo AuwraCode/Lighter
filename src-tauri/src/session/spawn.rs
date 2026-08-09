@@ -25,7 +25,24 @@ pub struct Spawned {
     pub args: Vec<String>,
 }
 
+static CLAUDE_BIN_OVERRIDE: std::sync::RwLock<Option<PathBuf>> =
+    std::sync::RwLock::new(None);
+
+/// Settings-provided claude.exe path (None = resolve from PATH).
+pub fn set_claude_bin_override(path: Option<String>) {
+    *CLAUDE_BIN_OVERRIDE.write().unwrap() = path.map(PathBuf::from);
+}
+
 pub fn resolve_claude_bin() -> Result<PathBuf> {
+    if let Some(overridden) = CLAUDE_BIN_OVERRIDE.read().unwrap().clone() {
+        if overridden.is_file() {
+            return Ok(overridden);
+        }
+        tracing::warn!(
+            path = %overridden.display(),
+            "configured claude binary missing; falling back to PATH"
+        );
+    }
     which::which("claude")
         .map_err(|e| Error::Spawn(format!("claude binary not found on PATH: {e}")))
 }

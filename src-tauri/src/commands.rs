@@ -12,6 +12,7 @@ use crate::error::{Error, Result};
 use crate::presets::{Preset, Presets};
 use crate::profiles::{Profile, Profiles, ProfilesInfo};
 use crate::records::{Records, SessionRecord};
+use crate::settings::{AppSettings, Settings};
 use crate::session::events::{
     Batch, PermissionDecisionDto, RegistryBatch, SessionConfig, SessionInfo, SessionSnapshot,
     SessionSummary, TranscriptItem,
@@ -269,6 +270,22 @@ pub async fn profile_auth_status(config_dir: Option<String>) -> Result<serde_jso
 #[tauri::command]
 pub fn open_login_terminal(config_dir: Option<String>) -> Result<()> {
     crate::profiles::open_login_terminal(config_dir)
+}
+
+// ---------------------------------------------------------------------------
+// settings
+
+#[tauri::command]
+pub fn get_settings(settings: State<'_, Settings>) -> AppSettings {
+    settings.get()
+}
+
+#[tauri::command]
+pub fn save_settings(
+    settings: State<'_, Settings>,
+    new_settings: AppSettings,
+) -> Result<AppSettings> {
+    settings.save(new_settings)
 }
 
 /// The CLI version the protocol fixtures were captured against.

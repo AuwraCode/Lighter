@@ -1,6 +1,7 @@
-import { Columns2, LayoutGrid, Plus } from "lucide-react";
+import { Columns2, LayoutGrid, Plus, Settings } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { statusDotClass } from "@/lib/status";
+import { openSettingsDialog } from "@/stores/settings";
 import {
   focusSession,
   openNewSession,
@@ -74,6 +75,16 @@ export function Sidebar() {
         {order.length === 0 && (
           <div className="px-2.5 py-1.5 text-xs text-fg-muted">No sessions</div>
         )}
+      </div>
+
+      <div className="border-t border-border-subtle p-2">
+        <button
+          onClick={() => openSettingsDialog(true)}
+          className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-xs font-medium text-fg-secondary hover:bg-hover hover:text-fg"
+        >
+          <Settings size={14} />
+          Settings
+        </button>
       </div>
     </aside>
   );

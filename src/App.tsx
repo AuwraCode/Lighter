@@ -8,11 +8,13 @@ import { SessionView } from "@/components/SessionView";
 import { NewSessionDialog } from "@/components/NewSessionDialog";
 import { PresetDialog } from "@/components/PresetDialog";
 import { ProfilesDialog } from "@/components/ProfilesDialog";
+import { SettingsDialog } from "@/components/SettingsDialog";
 import { CommandPalette } from "@/components/CommandPalette";
 import { Dashboard } from "@/views/Dashboard";
 import { Workspace } from "@/views/Workspace";
 import { loadPresets } from "@/stores/presets";
 import { loadProfiles } from "@/stores/profiles";
+import { loadSettings } from "@/stores/settings";
 import {
   focusSession,
   initRegistry,
@@ -53,6 +55,7 @@ function App() {
     void initRegistry();
     void loadPresets();
     void loadProfiles();
+    void loadSettings();
     void checkCliVersion();
   }, []);
 
@@ -112,6 +115,7 @@ function App() {
       <NewSessionDialog />
       <PresetDialog />
       <ProfilesDialog />
+      <SettingsDialog />
       <CommandPalette />
       <Toaster
         theme="dark"

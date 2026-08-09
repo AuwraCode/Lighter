@@ -7,6 +7,7 @@ pub mod profiles;
 pub mod protocol;
 pub mod records;
 pub mod session;
+pub mod settings;
 pub mod worktree;
 
 use std::sync::Arc;
@@ -39,6 +40,9 @@ pub fn run() {
         .setup(|app| {
             let dir = app.path().app_config_dir()?;
             let store = persistence::Store::new(dir);
+            // Settings first: they apply process-wide overrides (claude path,
+            // worktree base) that everything below relies on.
+            app.manage(settings::Settings::load(store.clone()));
             let records = Arc::new(records::Records::load(store.clone()));
             app.manage(presets::Presets::load(store.clone()));
             app.manage(profiles::Profiles::load(store));
@@ -74,6 +78,8 @@ pub fn run() {
             commands::discover_profiles,
             commands::profile_auth_status,
             commands::open_login_terminal,
+            commands::get_settings,
+            commands::save_settings,
         ])
         .on_window_event(|window, event| {
             // Closing the window gracefully stops every session first so CLIs

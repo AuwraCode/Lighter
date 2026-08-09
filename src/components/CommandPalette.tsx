@@ -9,10 +9,12 @@ import {
   LayoutGrid,
   OctagonX,
   Plus,
+  Settings,
   SlashSquare,
   UserRound,
 } from "lucide-react";
 import { openProfilesDialog } from "@/stores/profiles";
+import { openSettingsDialog } from "@/stores/settings";
 import { addSessionToWorkspace } from "@/stores/workspace";
 import * as ipc from "@/lib/ipc";
 import { cn } from "@/lib/cn";
@@ -110,6 +112,11 @@ export function CommandPalette() {
               icon={<UserRound size={14} />}
               label="Manage accounts"
               onSelect={() => run(() => openProfilesDialog(true))}
+            />
+            <PaletteItem
+              icon={<Settings size={14} />}
+              label="Open settings"
+              onSelect={() => run(() => openSettingsDialog(true))}
             />
             {focusedId && (
               <>

@@ -65,19 +65,28 @@ pub fn is_dirty(root: &Path) -> bool {
         .unwrap_or(false)
 }
 
+static BASE_OVERRIDE: std::sync::RwLock<Option<PathBuf>> = std::sync::RwLock::new(None);
+
+/// Settings-provided worktree base dir (None = ~/.lighter/worktrees).
+pub fn set_base_override(path: Option<String>) {
+    *BASE_OVERRIDE.write().unwrap() = path.map(PathBuf::from);
+}
+
 fn worktree_base(root: &Path) -> PathBuf {
-    let home = std::env::var_os("USERPROFILE")
-        .map(PathBuf::from)
-        .unwrap_or_else(std::env::temp_dir);
+    let base = BASE_OVERRIDE.read().unwrap().clone().unwrap_or_else(|| {
+        std::env::var_os("USERPROFILE")
+            .map(PathBuf::from)
+            .unwrap_or_else(std::env::temp_dir)
+            .join(".lighter")
+            .join("worktrees")
+    });
     let name = root
         .file_name()
         .map(|s| s.to_string_lossy().to_string())
         .unwrap_or_else(|| "repo".into());
     let mut hasher = DefaultHasher::new();
     repo_key(root).hash(&mut hasher);
-    home.join(".lighter")
-        .join("worktrees")
-        .join(format!("{name}-{:08x}", hasher.finish() as u32))
+    base.join(format!("{name}-{:08x}", hasher.finish() as u32))
 }
 
 pub fn slugify(name: &str) -> String {

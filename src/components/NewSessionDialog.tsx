@@ -10,6 +10,7 @@ import {
 } from "@/stores/registry";
 import { addSessionToWorkspace } from "@/stores/workspace";
 import { profileById, useProfiles } from "@/stores/profiles";
+import { settingsStore } from "@/stores/settings";
 
 const MODELS = ["haiku", "sonnet", "opus[1m]", "default"];
 const MODES = ["default", "plan", "acceptEdits", "auto", "dontAsk", "bypassPermissions"];
@@ -32,6 +33,9 @@ export function NewSessionDialog() {
       setError(null);
       setBusy(false);
       setProfileId(defaultProfileId ?? "");
+      const defaults = settingsStore.getState().settings;
+      setModel(defaults.default_model ?? "default");
+      setMode(defaults.default_permission_mode ?? "default");
     }
   }, [open, defaultProfileId]);
 
