@@ -6,11 +6,14 @@ use tauri::State;
 use tokio::sync::oneshot;
 use uuid::Uuid;
 
+use std::sync::Arc;
+
 use crate::error::{Error, Result};
 use crate::presets::{Preset, Presets};
+use crate::records::{Records, SessionRecord};
 use crate::session::events::{
     Batch, PermissionDecisionDto, RegistryBatch, SessionConfig, SessionInfo, SessionSnapshot,
-    SessionSummary,
+    SessionSummary, TranscriptItem,
 };
 use crate::session::manager::SessionManager;
 use crate::session::router::SessionCommand;
@@ -161,4 +164,52 @@ pub fn save_preset(presets: State<'_, Presets>, preset: Preset) -> Result<Preset
 #[tauri::command]
 pub fn delete_preset(presets: State<'_, Presets>, preset_id: Uuid) -> Result<()> {
     presets.delete(preset_id)
+}
+
+#[tauri::command]
+pub fn list_session_records(records: State<'_, Arc<Records>>) -> Vec<SessionRecord> {
+    records.list()
+}
+
+#[tauri::command]
+pub fn delete_session_record(records: State<'_, Arc<Records>>, record_id: Uuid) -> Result<()> {
+    records.delete(record_id)
+}
+
+/// Respawn a recorded session with `--resume`; the CLI restores the model's
+/// context from its own transcript, we restore cost from the record.
+#[tauri::command]
+pub fn resume_session(
+    manager: State<'_, SessionManager>,
+    records: State<'_, Arc<Records>>,
+    record_id: Uuid,
+    channel: Channel<Batch>,
+) -> Result<SessionInfo> {
+    let record = records
+        .get(record_id)
+        .ok_or_else(|| Error::InvalidInput("unknown session record".into()))?;
+    if !std::path::Path::new(&record.cwd).is_dir() {
+        return Err(Error::InvalidInput(format!(
+            "the working directory no longer exists: {}",
+            record.cwd
+        )));
+    }
+    let cfg = SessionConfig {
+        cwd: record.cwd.clone(),
+        title: Some(record.title.clone()),
+        // The CLI resolves aliases in init; feed the resolved id back in.
+        model: (!record.model.is_empty()).then(|| record.model.clone()),
+        resume_session_id: Some(record.id.to_string()),
+        worktree_policy: Some("never".into()),
+        ..Default::default()
+    };
+    manager.create_with_base_cost(cfg, channel, record.total_cost_usd)
+}
+
+/// Best-effort transcript backfill from the CLI's own JSONL files.
+#[tauri::command]
+pub async fn load_history(session_id: Uuid, cwd: String) -> Result<Vec<TranscriptItem>> {
+    tauri::async_runtime::spawn_blocking(move || crate::history::load_history(&cwd, session_id))
+        .await
+        .map_err(|e| Error::Control(e.to_string()))?
 }

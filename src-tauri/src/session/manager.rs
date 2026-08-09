@@ -2,13 +2,14 @@
 //! state lives inside each session's router task.
 
 use std::collections::HashMap;
-use std::sync::{Mutex, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock};
 
 use tauri::ipc::Channel;
 use tokio::sync::{mpsc, oneshot};
 use uuid::Uuid;
 
 use crate::error::{Error, Result};
+use crate::records::Records;
 use crate::worktree::{self, WorktreeMeta};
 
 use super::events::{
@@ -29,20 +30,38 @@ pub struct SessionHandle {
     pub worktree: Option<WorktreeMeta>,
 }
 
-#[derive(Default)]
 pub struct SessionManager {
     sessions: Mutex<HashMap<Uuid, SessionHandle>>,
     registry_tx: OnceLock<mpsc::UnboundedSender<RegistryMsg>>,
     /// Serializes "inspect repo → maybe create worktree → register" so two
     /// simultaneous launches into one repo can't both skip isolation.
     worktree_lock: Mutex<()>,
+    records: Arc<Records>,
+}
+
+/// Test-only convenience: records land in a temp directory.
+impl Default for SessionManager {
+    fn default() -> Self {
+        let dir = std::env::temp_dir().join("lighter-test-records");
+        SessionManager::new(Arc::new(Records::load(crate::persistence::Store::new(dir))))
+    }
 }
 
 impl SessionManager {
+    pub fn new(records: Arc<Records>) -> SessionManager {
+        SessionManager {
+            sessions: Mutex::new(HashMap::new()),
+            registry_tx: OnceLock::new(),
+            worktree_lock: Mutex::new(()),
+            records,
+        }
+    }
+
     /// The registry task is spawned lazily on first use (commands run inside
     /// the tauri async runtime; construction happens before it exists).
     fn registry(&self) -> &mpsc::UnboundedSender<RegistryMsg> {
-        self.registry_tx.get_or_init(registry::start)
+        self.registry_tx
+            .get_or_init(|| registry::start(self.records.clone()))
     }
 
     pub async fn attach_registry(
@@ -55,10 +74,17 @@ impl SessionManager {
             .map_err(|_| Error::SessionGone)?;
         rx.await.map_err(|_| Error::SessionGone)
     }
-    pub fn create(
+    pub fn create(&self, cfg: SessionConfig, channel: Channel<Batch>) -> Result<SessionInfo> {
+        self.create_with_base_cost(cfg, channel, 0.0)
+    }
+
+    /// `base_cost`: cumulative spend from previous processes of this session
+    /// (resume) so the UI keeps counting from where it left off.
+    pub fn create_with_base_cost(
         &self,
         mut cfg: SessionConfig,
         channel: Channel<Batch>,
+        base_cost: f64,
     ) -> Result<SessionInfo> {
         let session_id = match &cfg.resume_session_id {
             Some(id) => Uuid::parse_str(id)
@@ -123,12 +149,15 @@ impl SessionManager {
         }
 
         let spawned = spawn::spawn_session(session_id, &cfg)?;
-        let state = SessionState::new(
+        let mut state = SessionState::new(
             session_id,
             title.clone(),
             cfg.cwd.clone(),
             worktree_meta.clone(),
         );
+        if base_cost > 0.0 {
+            state.set_base_cost(base_cost);
+        }
         let initial_prompt = cfg.initial_prompt.clone().filter(|p| !p.trim().is_empty());
         let tx = router::start(
             session_id,

@@ -1,8 +1,9 @@
-import { useState } from "react";
-import { Loader2, Pencil, Play, Plus, Trash2, Zap } from "lucide-react";
+import { useEffect, useState } from "react";
+import { History, Loader2, Pencil, Play, Plus, Trash2, X, Zap } from "lucide-react";
 import { cn } from "@/lib/cn";
 import * as ipc from "@/lib/ipc";
 import type { Preset } from "@/lib/generated/Preset";
+import type { SessionRecord } from "@/lib/generated/SessionRecord";
 import type { SessionSummary } from "@/lib/generated/SessionSummary";
 import { statusColor, statusLabel } from "@/lib/status";
 import { focusSession, openNewSession, useRegistry } from "@/stores/registry";
@@ -11,7 +12,17 @@ import { editPreset, launchPreset, usePresets } from "@/stores/presets";
 
 export function Dashboard() {
   const order = useRegistry((s) => s.order);
+  const active = useRegistry((s) => s.sessions);
   const presets = usePresets((s) => s.presets);
+  const [records, setRecords] = useState<SessionRecord[]>([]);
+
+  useEffect(() => {
+    void ipc.listSessionRecords().then(setRecords).catch(() => {});
+  }, [order.length]);
+
+  const resumable = records
+    .filter((r) => !(r.id in active))
+    .slice(0, 12);
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto p-5">
@@ -56,8 +67,100 @@ export function Dashboard() {
           ))}
         </div>
       )}
+
+      {resumable.length > 0 && (
+        <>
+          <h1 className="mb-3 mt-6 text-sm font-semibold tracking-tight">
+            Resumable
+          </h1>
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-2.5">
+            {resumable.map((r) => (
+              <ResumableCard
+                key={r.id}
+                record={r}
+                onChanged={() =>
+                  void ipc.listSessionRecords().then(setRecords).catch(() => {})
+                }
+              />
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
+}
+
+function ResumableCard({
+  record,
+  onChanged,
+}: {
+  record: SessionRecord;
+  onChanged: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const resume = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const info = await ipc.resumeSession(record.id);
+      focusSession(info.id);
+      onChanged();
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="group flex items-center gap-2 rounded-lg border border-border-subtle bg-surface/60 px-3 py-2.5">
+      <History size={14} className="shrink-0 text-fg-muted" />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-baseline gap-2">
+          <span className="truncate text-xs font-medium">{record.title}</span>
+          <span className="shrink-0 font-mono text-[10px] text-fg-muted">
+            {relativeTime(Number(record.last_active_ms))}
+          </span>
+        </div>
+        <div
+          className="truncate text-[10px] text-fg-muted"
+          title={error ?? record.last_snippet}
+        >
+          {error ? <span className="text-danger">{error}</span> : record.last_snippet || record.cwd}
+        </div>
+      </div>
+      <button
+        onClick={() => {
+          void ipc.deleteSessionRecord(record.id).then(onChanged).catch(() => {});
+        }}
+        title="Forget"
+        className="hidden shrink-0 rounded p-1 text-fg-muted hover:bg-hover hover:text-danger group-hover:block"
+      >
+        <X size={12} />
+      </button>
+      <button
+        onClick={resume}
+        disabled={busy}
+        title="Resume session"
+        className="inline-flex shrink-0 items-center gap-1 rounded-md border border-border px-2 py-1 text-[11px] text-fg-secondary hover:bg-hover hover:text-fg disabled:opacity-50"
+      >
+        {busy ? <Loader2 size={11} className="animate-spin" /> : <Play size={11} />}
+        Resume
+      </button>
+    </div>
+  );
+}
+
+function relativeTime(ms: number): string {
+  const diff = Date.now() - ms;
+  const min = Math.floor(diff / 60_000);
+  if (min < 1) return "now";
+  if (min < 60) return `${min}m ago`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
 }
 
 function PresetCard({ preset }: { preset: Preset }) {

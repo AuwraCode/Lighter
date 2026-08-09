@@ -1,10 +1,14 @@
 pub mod commands;
 pub mod error;
+pub mod history;
 pub mod persistence;
 pub mod presets;
 pub mod protocol;
+pub mod records;
 pub mod session;
 pub mod worktree;
+
+use std::sync::Arc;
 
 use session::manager::SessionManager;
 use tauri::Manager;
@@ -31,10 +35,13 @@ pub fn run() {
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
-        .manage(SessionManager::default())
         .setup(|app| {
             let dir = app.path().app_config_dir()?;
-            app.manage(presets::Presets::load(persistence::Store::new(dir)));
+            let store = persistence::Store::new(dir);
+            let records = Arc::new(records::Records::load(store.clone()));
+            app.manage(presets::Presets::load(store));
+            app.manage(records.clone());
+            app.manage(SessionManager::new(records));
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -53,6 +60,10 @@ pub fn run() {
             commands::list_presets,
             commands::save_preset,
             commands::delete_preset,
+            commands::list_session_records,
+            commands::delete_session_record,
+            commands::resume_session,
+            commands::load_history,
         ])
         .on_window_event(|window, event| {
             // Closing the window gracefully stops every session first so CLIs
@@ -62,6 +73,8 @@ pub fn run() {
                 if window.label() == "main" {
                     let manager = window.state::<SessionManager>();
                     manager.stop_all();
+                    let records = window.state::<Arc<records::Records>>();
+                    records.flush();
                 }
             }
         })

@@ -4,11 +4,14 @@
 //! at most 4×/s regardless of how fast sessions stream.
 
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 use std::time::Duration;
 
 use tauri::ipc::Channel;
 use tokio::sync::{mpsc, oneshot};
 use uuid::Uuid;
+
+use crate::records::Records;
 
 use super::events::{RegistryBatch, SessionSummary};
 
@@ -23,7 +26,7 @@ pub enum RegistryMsg {
     },
 }
 
-pub fn start() -> mpsc::UnboundedSender<RegistryMsg> {
+pub fn start(records: Arc<Records>) -> mpsc::UnboundedSender<RegistryMsg> {
     let (tx, mut rx) = mpsc::unbounded_channel::<RegistryMsg>();
     tauri::async_runtime::spawn(async move {
         let mut latest: HashMap<Uuid, SessionSummary> = HashMap::new();
@@ -42,6 +45,7 @@ pub fn start() -> mpsc::UnboundedSender<RegistryMsg> {
                             .map(|prev| prev != &summary)
                             .unwrap_or(true);
                         if changed {
+                            records.update_from_summary(&summary);
                             dirty.insert(summary.id);
                             latest.insert(summary.id, summary);
                         }
@@ -62,6 +66,7 @@ pub fn start() -> mpsc::UnboundedSender<RegistryMsg> {
                     None => break,
                 },
                 _ = ticker.tick() => {
+                    records.flush_if_dirty();
                     if sink.is_none() || (dirty.is_empty() && removed.is_empty()) {
                         continue;
                     }

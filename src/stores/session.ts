@@ -29,6 +29,7 @@ export interface SessionUiState {
   lastTurn: TurnStats | null;
   lastSeq: bigint;
   hydrated: boolean;
+  historyLoaded: boolean;
 }
 
 export type SessionStore = StoreApi<SessionUiState>;
@@ -47,6 +48,7 @@ function initialState(): SessionUiState {
     lastTurn: null,
     lastSeq: 0n,
     hydrated: false,
+    historyLoaded: false,
   };
 }
 
@@ -72,11 +74,19 @@ function buildIndex(items: TranscriptItem[]): Map<string, number> {
 }
 
 export function hydrateFromSnapshot(store: SessionStore, snapshot: SessionSnapshot) {
+  // A history backfill may already be prepended; keep items the live state
+  // doesn't know about (dedup by id, snapshot wins).
+  const prior = store.getState();
+  const snapshotIds = new Set(snapshot.items.map((i) => i.id));
+  const preserved = prior.historyLoaded
+    ? prior.items.filter((i) => !snapshotIds.has(i.id))
+    : [];
+  const items = [...preserved, ...snapshot.items];
   store.setState({
     meta: snapshot.meta,
     status: snapshot.status,
-    items: snapshot.items,
-    itemIndex: buildIndex(snapshot.items),
+    items,
+    itemIndex: buildIndex(items),
     streaming: new Map(snapshot.streaming.map((t) => [t.item_id, t.kind])),
     pending: snapshot.pending_permissions,
     stats: snapshot.stats,
@@ -85,6 +95,19 @@ export function hydrateFromSnapshot(store: SessionStore, snapshot: SessionSnapsh
     lastTurn: null,
     lastSeq: BigInt(snapshot.last_seq),
     hydrated: true,
+  });
+}
+
+/** Prepend transcript items recovered from the CLI's JSONL (resume backfill). */
+export function prependHistory(store: SessionStore, history: TranscriptItem[]) {
+  store.setState((prev) => {
+    const fresh = history.filter((h) => !prev.itemIndex.has(h.id));
+    const items = [...fresh, ...prev.items];
+    return {
+      items,
+      itemIndex: buildIndex(items),
+      historyLoaded: true,
+    };
   });
 }
 

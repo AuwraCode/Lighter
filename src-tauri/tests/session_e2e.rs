@@ -60,6 +60,87 @@ fn config(cwd: &str) -> SessionConfig {
 
 #[test]
 #[ignore = "requires logged-in claude CLI and spends API credits"]
+fn resume_restores_context_history_and_cost() {
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let _guard = rt.enter();
+
+    let tmp = std::env::temp_dir().join("lighter-e2e-resume");
+    let _ = std::fs::remove_dir_all(&tmp);
+    std::fs::create_dir_all(&tmp).unwrap();
+    let cwd = tmp.to_str().unwrap();
+
+    let manager = SessionManager::default();
+
+    // Session 1: teach it a codeword, stop gracefully.
+    let log1: EventLog = Arc::new(Mutex::new(Vec::new()));
+    let s1 = manager
+        .create(config(cwd), capture_channel(log1.clone()))
+        .unwrap();
+    manager
+        .command(
+            s1.id,
+            SessionCommand::SendUser {
+                text: "Remember the codeword: MANGO. Just confirm you memorized it.".into(),
+            },
+        )
+        .unwrap();
+    assert!(wait_for(&log1, |e| has_event(e, "TurnCompleted").next().is_some(), Duration::from_secs(90)));
+    manager
+        .command(s1.id, SessionCommand::Stop { graceful: true })
+        .unwrap();
+    assert!(wait_for(&log1, |e| has_event(e, "Exited").next().is_some(), Duration::from_secs(25)));
+    manager.remove(s1.id, false).unwrap();
+
+    // Transcript backfill from the CLI's own JSONL.
+    let history = lighter_lib::history::load_history(cwd, s1.id).expect("history backfill");
+    let history_text = serde_json::to_string(&history).unwrap();
+    assert!(
+        history_text.contains("MANGO"),
+        "backfilled history should contain the codeword"
+    );
+    println!("history backfill ok ({} items)", history.len());
+
+    // Resume with a base cost: context + cost both carry over.
+    let log2: EventLog = Arc::new(Mutex::new(Vec::new()));
+    let mut cfg = config(cwd);
+    cfg.resume_session_id = Some(s1.id.to_string());
+    cfg.worktree_policy = Some("never".into());
+    let s2 = manager
+        .create_with_base_cost(cfg, capture_channel(log2.clone()), 1.25)
+        .unwrap();
+    assert_eq!(s2.id, s1.id, "resume keeps the session id");
+    manager
+        .command(
+            s2.id,
+            SessionCommand::SendUser {
+                text: "What is the codeword? Answer with just the codeword.".into(),
+            },
+        )
+        .unwrap();
+    assert!(wait_for(&log2, |e| has_event(e, "TurnCompleted").next().is_some(), Duration::from_secs(90)));
+    {
+        let events = log2.lock().unwrap();
+        let turn = has_event(&events, "TurnCompleted").next().unwrap();
+        let result_text = turn["stats"]["result_text"].as_str().unwrap_or_default();
+        assert!(
+            result_text.contains("MANGO"),
+            "resumed session forgot the codeword: {result_text}"
+        );
+        let total = turn["stats"]["total_cost_usd"].as_f64().unwrap();
+        assert!(
+            total >= 1.25,
+            "resumed cost must include the base cost, got {total}"
+        );
+    }
+    manager
+        .command(s2.id, SessionCommand::Stop { graceful: true })
+        .unwrap();
+    assert!(wait_for(&log2, |e| has_event(e, "Exited").next().is_some(), Duration::from_secs(25)));
+    println!("resume e2e ok");
+}
+
+#[test]
+#[ignore = "requires logged-in claude CLI and spends API credits"]
 fn same_repo_second_session_gets_worktree() {
     let rt = tokio::runtime::Runtime::new().unwrap();
     let _guard = rt.enter();

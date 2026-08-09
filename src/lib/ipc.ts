@@ -4,8 +4,10 @@ import type { PermissionDecisionDto } from "./generated/PermissionDecisionDto";
 import type { RegistryBatch } from "./generated/RegistryBatch";
 import type { SessionConfig } from "./generated/SessionConfig";
 import type { SessionInfo } from "./generated/SessionInfo";
+import type { SessionRecord } from "./generated/SessionRecord";
 import type { SessionSnapshot } from "./generated/SessionSnapshot";
 import type { SessionSummary } from "./generated/SessionSummary";
+import type { TranscriptItem } from "./generated/TranscriptItem";
 
 export type BatchHandler = (batch: Batch) => void;
 
@@ -84,4 +86,25 @@ export function attachRegistry(
   const channel = new Channel<RegistryBatch>();
   channel.onmessage = onBatch;
   return invoke("attach_registry", { channel });
+}
+
+export function listSessionRecords(): Promise<SessionRecord[]> {
+  return invoke("list_session_records");
+}
+
+export function deleteSessionRecord(recordId: string): Promise<void> {
+  return invoke("delete_session_record", { recordId });
+}
+
+export function resumeSession(recordId: string): Promise<SessionInfo> {
+  const channel = new Channel<Batch>();
+  channel.onmessage = () => {};
+  return invoke("resume_session", { recordId, channel });
+}
+
+export function loadHistory(
+  sessionId: string,
+  cwd: string,
+): Promise<TranscriptItem[]> {
+  return invoke("load_history", { sessionId, cwd });
 }

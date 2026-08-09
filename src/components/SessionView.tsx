@@ -9,6 +9,7 @@ import {
   Check,
   CircleStop,
   GitBranch,
+  History as HistoryIcon,
   Loader2,
   Send,
   ShieldQuestion,
@@ -23,6 +24,7 @@ import type { TranscriptItem } from "@/lib/generated/TranscriptItem";
 import {
   getOrCreateSessionStore,
   makeAttachBuffer,
+  prependHistory,
 } from "@/stores/session";
 import { focusSession, registryStore } from "@/stores/registry";
 import { statusColor } from "@/lib/status";
@@ -182,6 +184,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
         className="min-h-0 flex-1 select-text overflow-y-auto px-4 py-3"
       >
         <div className="mx-auto flex max-w-3xl flex-col gap-3">
+          <LoadHistoryButton sessionId={sessionId} />
           {items.map((item) => (
             <ItemView key={item.id} item={item} />
           ))}
@@ -210,6 +213,44 @@ export function SessionView({ sessionId }: { sessionId: string }) {
 
       <Composer sessionId={sessionId} disabled={!!exited} />
     </div>
+  );
+}
+
+/** Backfills earlier turns from the CLI's transcript (best effort). */
+function LoadHistoryButton({ sessionId }: { sessionId: string }) {
+  const store = getOrCreateSessionStore(sessionId);
+  const historyLoaded = useStore(store, (s) => s.historyLoaded);
+  const cwd = useStore(store, (s) => s.meta?.cwd ?? "");
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  if (historyLoaded || failed || !cwd) return null;
+
+  const load = async () => {
+    setBusy(true);
+    try {
+      const history = await ipc.loadHistory(sessionId, cwd);
+      prependHistory(store, history);
+    } catch {
+      setFailed(true);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <button
+      onClick={load}
+      disabled={busy}
+      className="mx-auto inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-[11px] text-fg-muted hover:bg-hover hover:text-fg disabled:opacity-50"
+    >
+      {busy ? (
+        <Loader2 size={11} className="animate-spin" />
+      ) : (
+        <HistoryIcon size={11} />
+      )}
+      Load earlier conversation
+    </button>
   );
 }
 
