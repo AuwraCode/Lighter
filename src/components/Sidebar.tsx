@@ -1,11 +1,15 @@
-import { Columns2, LayoutGrid, Plus, Settings } from "lucide-react";
+import { CircleStop, Columns2, LayoutGrid, Plus, Settings, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/cn";
+import * as ipc from "@/lib/ipc";
 import { statusDotClass } from "@/lib/status";
 import { openSettingsDialog } from "@/stores/settings";
+import { dropSessionStore } from "@/stores/session";
 import {
   focusSession,
   openNewSession,
   openWorkspace,
+  registryStore,
   useRegistry,
 } from "@/stores/registry";
 import {
@@ -117,16 +121,51 @@ function SidebarRow({
       {summary.pending_permissions > 0 && (
         <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-warning" />
       )}
-      <span
-        onClick={(e) => {
-          e.stopPropagation();
-          addSessionToWorkspace(id);
-          openWorkspace();
-        }}
-        title="Add to split view"
-        className="hidden shrink-0 cursor-pointer rounded p-0.5 text-fg-muted hover:bg-raised hover:text-accent group-hover:block"
-      >
-        <Columns2 size={11} />
+      <span className="hidden shrink-0 items-center gap-0.5 group-hover:flex">
+        <span
+          onClick={(e) => {
+            e.stopPropagation();
+            addSessionToWorkspace(id);
+            openWorkspace();
+          }}
+          title="Add to split view"
+          className="cursor-pointer rounded p-0.5 text-fg-muted hover:bg-raised hover:text-accent"
+        >
+          <Columns2 size={11} />
+        </span>
+        <span
+          onClick={(e) => {
+            e.stopPropagation();
+            const gone =
+              summary.status === "Exited" || summary.status === "Failed";
+            if (gone) {
+              void ipc
+                .removeSession(id, true)
+                .then((warning) => {
+                  if (warning) toast.warning(warning);
+                })
+                .catch(() => {});
+              dropSessionStore(id);
+              if (registryStore.getState().focusedId === id) {
+                focusSession(null);
+              }
+            } else {
+              void ipc.stopSession(id).catch(() => {});
+            }
+          }}
+          title={
+            summary.status === "Exited" || summary.status === "Failed"
+              ? "Remove session"
+              : "Stop session"
+          }
+          className="cursor-pointer rounded p-0.5 text-fg-muted hover:bg-raised hover:text-danger"
+        >
+          {summary.status === "Exited" || summary.status === "Failed" ? (
+            <Trash2 size={11} />
+          ) : (
+            <CircleStop size={11} />
+          )}
+        </span>
       </span>
       {index < 8 && (
         <span className="shrink-0 font-mono text-[9px] text-fg-muted group-hover:hidden">
