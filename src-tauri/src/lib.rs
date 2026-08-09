@@ -1,5 +1,9 @@
+pub mod commands;
+pub mod error;
 pub mod protocol;
+pub mod session;
 
+use session::manager::SessionManager;
 use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -24,7 +28,30 @@ pub fn run() {
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![])
+        .manage(SessionManager::default())
+        .invoke_handler(tauri::generate_handler![
+            commands::create_session,
+            commands::attach_session,
+            commands::send_user_message,
+            commands::respond_permission,
+            commands::set_permission_mode,
+            commands::set_model,
+            commands::interrupt_session,
+            commands::stop_session,
+            commands::remove_session,
+            commands::list_sessions,
+        ])
+        .on_window_event(|window, event| {
+            // Closing the window gracefully stops every session first so CLIs
+            // can flush their transcripts (resume depends on it). Job objects
+            // still guarantee cleanup if anything survives.
+            if let tauri::WindowEvent::Destroyed = event {
+                if window.label() == "main" {
+                    let manager = window.state::<SessionManager>();
+                    manager.stop_all();
+                }
+            }
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

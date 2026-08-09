@@ -10,7 +10,8 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "typegen": "cd src-tauri && set TS_RS_EXPORT_DIR=../src/lib/generated&& cargo test export_bindings"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",

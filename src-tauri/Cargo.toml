@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Multi-session cockpit for Claude Code CLI"
 authors = ["Grzegorz Handzel"]
 edition = "2021"
+default-run = "lighter"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -32,4 +33,9 @@ tokio = { version = "1.53.1", features = ["rt-multi-thread", "process", "io-util
 tokio-util = { version = "0.7.19", features = ["codec"] }
 uuid = { version = "1.24.0", features = ["v4", "serde"] }
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
+win32job = "2.0.3"
+which = "8.0.5"
+dunce = "1.0.5"
+ts-rs = { version = "12.0.1", features = ["uuid-impl", "serde-json-impl"] }
+futures-util = "0.3.33"
 
