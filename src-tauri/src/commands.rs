@@ -8,7 +8,8 @@ use uuid::Uuid;
 
 use crate::error::{Error, Result};
 use crate::session::events::{
-    Batch, PermissionDecisionDto, SessionConfig, SessionInfo, SessionSnapshot,
+    Batch, PermissionDecisionDto, RegistryBatch, SessionConfig, SessionInfo, SessionSnapshot,
+    SessionSummary,
 };
 use crate::session::manager::SessionManager;
 use crate::session::router::SessionCommand;
@@ -124,4 +125,12 @@ pub fn list_sessions(manager: State<'_, SessionManager>) -> Vec<SessionInfo> {
 #[tauri::command]
 pub fn set_focus(manager: State<'_, SessionManager>, session_id: Option<Uuid>) {
     manager.set_focus(session_id)
+}
+
+#[tauri::command]
+pub async fn attach_registry(
+    manager: State<'_, SessionManager>,
+    channel: Channel<RegistryBatch>,
+) -> Result<Vec<SessionSummary>> {
+    manager.attach_registry(channel).await
 }

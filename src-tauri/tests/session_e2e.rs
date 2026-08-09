@@ -60,6 +60,123 @@ fn config(cwd: &str) -> SessionConfig {
 
 #[test]
 #[ignore = "requires logged-in claude CLI and spends API credits"]
+fn multi_session_parallel_with_registry() {
+    use std::collections::HashMap;
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let _guard = rt.enter();
+
+    let manager = SessionManager::default();
+
+    // Registry: merge batches into a live map, exactly like the frontend does.
+    let registry: Arc<Mutex<HashMap<String, Value>>> = Arc::new(Mutex::new(HashMap::new()));
+    let reg_map = registry.clone();
+    let reg_channel = Channel::new(move |body: InvokeResponseBody| {
+        if let InvokeResponseBody::Json(json) = body {
+            if let Ok(batch) = serde_json::from_str::<Value>(&json) {
+                let mut map = reg_map.lock().unwrap();
+                if let Some(updates) = batch["updates"].as_array() {
+                    for u in updates {
+                        if let Some(id) = u["id"].as_str() {
+                            map.insert(id.to_string(), u.clone());
+                        }
+                    }
+                }
+                if let Some(removed) = batch["removed"].as_array() {
+                    for r in removed {
+                        if let Some(id) = r.as_str() {
+                            map.remove(id);
+                        }
+                    }
+                }
+            }
+        }
+        Ok(())
+    });
+    let initial = rt
+        .block_on(manager.attach_registry(reg_channel))
+        .expect("attach registry");
+    assert!(initial.is_empty());
+
+    // Three parallel sessions, each with its own event log.
+    let mut ids = Vec::new();
+    let mut logs = Vec::new();
+    for i in 0..3 {
+        let tmp = std::env::temp_dir().join(format!("lighter-e2e-multi-{i}"));
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(&tmp).unwrap();
+        let log: EventLog = Arc::new(Mutex::new(Vec::new()));
+        let info = manager
+            .create(config(tmp.to_str().unwrap()), capture_channel(log.clone()))
+            .expect("create");
+        manager
+            .command(
+                info.id,
+                SessionCommand::SendUser {
+                    text: format!("Say exactly: S{i}"),
+                },
+            )
+            .unwrap();
+        ids.push(info.id);
+        logs.push(log);
+    }
+
+    for (i, log) in logs.iter().enumerate() {
+        assert!(
+            wait_for(log, |e| has_event(e, "TurnCompleted").next().is_some(), Duration::from_secs(120)),
+            "session {i} did not complete"
+        );
+    }
+
+    // Registry converges: all three visible, Idle, with real cost.
+    let deadline = Instant::now() + Duration::from_secs(10);
+    loop {
+        {
+            let map = registry.lock().unwrap();
+            let done = ids.iter().all(|id| {
+                map.get(&id.to_string()).is_some_and(|s| {
+                    s["status"] == "Idle" && s["total_cost_usd"].as_f64().unwrap_or(0.0) > 0.0
+                })
+            });
+            if done {
+                break;
+            }
+            assert!(
+                Instant::now() < deadline,
+                "registry did not converge: {:?}",
+                map.values()
+                    .map(|s| (s["title"].clone(), s["status"].clone()))
+                    .collect::<Vec<_>>()
+            );
+        }
+        std::thread::sleep(Duration::from_millis(200));
+    }
+    println!("registry converged for 3 sessions");
+
+    // Removing a session propagates as a registry removal.
+    manager.remove(ids[0]).unwrap();
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while registry.lock().unwrap().contains_key(&ids[0].to_string()) {
+        assert!(Instant::now() < deadline, "removal did not reach registry");
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    println!("registry removal ok");
+
+    for id in &ids[1..] {
+        manager
+            .command(*id, SessionCommand::Stop { graceful: true })
+            .unwrap();
+    }
+    for (i, log) in logs.iter().enumerate().skip(1) {
+        assert!(
+            wait_for(log, |e| has_event(e, "Exited").next().is_some(), Duration::from_secs(25)),
+            "session {i} did not exit"
+        );
+    }
+}
+
+#[test]
+#[ignore = "requires logged-in claude CLI and spends API credits"]
 fn permission_flow_allow_and_deny() {
     let rt = tokio::runtime::Runtime::new().unwrap();
     let _guard = rt.enter();

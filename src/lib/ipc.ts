@@ -1,9 +1,11 @@
 import { Channel, invoke } from "@tauri-apps/api/core";
 import type { Batch } from "./generated/Batch";
 import type { PermissionDecisionDto } from "./generated/PermissionDecisionDto";
+import type { RegistryBatch } from "./generated/RegistryBatch";
 import type { SessionConfig } from "./generated/SessionConfig";
 import type { SessionInfo } from "./generated/SessionInfo";
 import type { SessionSnapshot } from "./generated/SessionSnapshot";
+import type { SessionSummary } from "./generated/SessionSummary";
 
 export type BatchHandler = (batch: Batch) => void;
 
@@ -69,4 +71,13 @@ export function listSessions(): Promise<SessionInfo[]> {
 /** Exactly one session (or none) is focused; only it receives text deltas. */
 export function setFocus(sessionId: string | null): Promise<void> {
   return invoke("set_focus", { sessionId });
+}
+
+/** Subscribe to dashboard summaries; resolves with the current full list. */
+export function attachRegistry(
+  onBatch: (batch: RegistryBatch) => void,
+): Promise<SessionSummary[]> {
+  const channel = new Channel<RegistryBatch>();
+  channel.onmessage = onBatch;
+  return invoke("attach_registry", { channel });
 }

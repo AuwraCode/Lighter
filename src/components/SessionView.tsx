@@ -1,15 +1,14 @@
-// Phase-2..4 development screen: drive ONE session end-to-end.
-// The real dashboard/session views replace this in later phases.
+// Focused session view: transcript, composer, live controls, permissions.
+// Mounted with key={sessionId}; always (re)attaches on mount — the atomic
+// snapshot makes that lossless.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useStore } from "zustand";
-import { open as openFolder } from "@tauri-apps/plugin-dialog";
 import {
+  ArrowLeft,
   Check,
   CircleStop,
-  Folder,
   Loader2,
-  Play,
   Send,
   ShieldQuestion,
   Squircle,
@@ -19,169 +18,19 @@ import { cn } from "@/lib/cn";
 import * as ipc from "@/lib/ipc";
 import type { HandshakeInfo } from "@/lib/generated/HandshakeInfo";
 import type { PendingPermission } from "@/lib/generated/PendingPermission";
-import type { SessionStatus } from "@/lib/generated/SessionStatus";
 import type { TranscriptItem } from "@/lib/generated/TranscriptItem";
 import {
-  applyBatch,
   getOrCreateSessionStore,
   makeAttachBuffer,
-  type SessionStore,
 } from "@/stores/session";
+import { focusSession, registryStore } from "@/stores/registry";
+import { statusColor } from "@/lib/status";
 
-const MODELS = ["haiku", "sonnet", "opus[1m]", "default"];
 // The set_permission_mode control request accepts "default" (not "manual",
 // which is flag-only) — see PROTOCOL.md.
 const MODES = ["default", "plan", "acceptEdits", "auto", "dontAsk", "bypassPermissions"];
 
-function statusColor(status: SessionStatus): string {
-  switch (status) {
-    case "Working":
-    case "Compacting":
-      return "bg-accent";
-    case "AwaitingApproval":
-      return "bg-warning";
-    case "Idle":
-      return "bg-success";
-    case "Failed":
-      return "bg-danger";
-    case "Exited":
-      return "bg-fg-muted";
-    default:
-      return "bg-fg-muted";
-  }
-}
-
-export function DevSession() {
-  const [sessionId, setSessionId] = useState<string | null>(null);
-  const [cwd, setCwd] = useState("");
-  const [model, setModel] = useState("haiku");
-  const [mode, setMode] = useState("default");
-  const [starting, setStarting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  // Re-attach after a webview reload (dev HMR): pick up the first session.
-  useEffect(() => {
-    if (sessionId) return;
-    ipc.listSessions().then((sessions) => {
-      const first = sessions[0];
-      if (!first) return;
-      const store = getOrCreateSessionStore(first.id);
-      const buffer = makeAttachBuffer(store);
-      ipc
-        .attachSession(first.id, buffer.onBatch)
-        .then((snapshot) => {
-          buffer.flush(snapshot);
-          setSessionId(first.id);
-          void ipc.setFocus(first.id);
-        })
-        .catch((e) => setError(String(e)));
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const start = useCallback(async () => {
-    if (!cwd) {
-      setError("Pick a working directory first.");
-      return;
-    }
-    setStarting(true);
-    setError(null);
-    try {
-      // Create the store first so the channel handler has somewhere to write.
-      const pendingBatches: Parameters<typeof applyBatch>[1][] = [];
-      let store: SessionStore | null = null;
-      const info = await ipc.createSession(
-        { ...defaultConfig(), cwd, model, permission_mode: mode },
-        (batch) => {
-          if (store) {
-            applyBatch(store, batch);
-          } else {
-            pendingBatches.push(batch);
-          }
-        },
-      );
-      store = getOrCreateSessionStore(info.id);
-      for (const b of pendingBatches) applyBatch(store, b);
-      setSessionId(info.id);
-      void ipc.setFocus(info.id);
-    } catch (e) {
-      setError(String(e));
-    } finally {
-      setStarting(false);
-    }
-  }, [cwd, model, mode]);
-
-  const pickFolder = useCallback(async () => {
-    const dir = await openFolder({ directory: true });
-    if (typeof dir === "string") setCwd(dir);
-  }, []);
-
-  return (
-    <div className="flex h-full flex-col">
-      <div className="flex items-center gap-2 border-b border-border-subtle px-3 py-2">
-        <button
-          onClick={pickFolder}
-          className="inline-flex items-center gap-1.5 rounded-md border border-border bg-elevated px-2.5 py-1.5 text-xs text-fg-secondary hover:bg-hover hover:text-fg"
-        >
-          <Folder size={13} />
-          {cwd ? cwd : "Pick folder"}
-        </button>
-        <select
-          value={model}
-          onChange={(e) => setModel(e.target.value)}
-          className="rounded-md border border-border bg-elevated px-2 py-1.5 text-xs"
-        >
-          {MODELS.map((m) => (
-            <option key={m}>{m}</option>
-          ))}
-        </select>
-        <select
-          value={mode}
-          onChange={(e) => setMode(e.target.value)}
-          className="rounded-md border border-border bg-elevated px-2 py-1.5 text-xs"
-        >
-          {MODES.map((m) => (
-            <option key={m}>{m}</option>
-          ))}
-        </select>
-        <button
-          onClick={start}
-          disabled={starting}
-          className="inline-flex items-center gap-1.5 rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-white hover:bg-accent-hover disabled:opacity-50"
-        >
-          {starting ? <Loader2 size={13} className="animate-spin" /> : <Play size={13} />}
-          New session
-        </button>
-        {error && <span className="truncate text-xs text-danger">{error}</span>}
-      </div>
-
-      {sessionId ? (
-        <SessionPane key={sessionId} sessionId={sessionId} />
-      ) : (
-        <div className="flex flex-1 items-center justify-center text-sm text-fg-muted">
-          Start a session to begin.
-        </div>
-      )}
-    </div>
-  );
-}
-
-function defaultConfig() {
-  return {
-    cwd: "",
-    title: null,
-    model: null,
-    permission_mode: null,
-    effort: null,
-    allowed_tools: [],
-    disallowed_tools: [],
-    append_system_prompt: null,
-    initial_prompt: null,
-    resume_session_id: null,
-  };
-}
-
-function SessionPane({ sessionId }: { sessionId: string }) {
+export function SessionView({ sessionId }: { sessionId: string }) {
   const store = getOrCreateSessionStore(sessionId);
   const status = useStore(store, (s) => s.status);
   const meta = useStore(store, (s) => s.meta);
@@ -191,7 +40,18 @@ function SessionPane({ sessionId }: { sessionId: string }) {
   const exited = useStore(store, (s) => s.exited);
   const handshake = useStore(store, (s) => s.handshake);
 
+  const [attachError, setAttachError] = useState<string | null>(null);
   const [controlError, setControlError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const buffer = makeAttachBuffer(store);
+    ipc
+      .attachSession(sessionId, buffer.onBatch)
+      .then(buffer.flush)
+      .catch((e) => setAttachError(String(e)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId]);
+
   const scrollRef = useRef<HTMLDivElement>(null);
   const stickToBottom = useRef(true);
 
@@ -214,6 +74,7 @@ function SessionPane({ sessionId }: { sessionId: string }) {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
+      if (registryStore.getState().newSessionOpen) return;
       const newest = pendingRef.current[pendingRef.current.length - 1];
       if (newest) {
         void ipc
@@ -250,9 +111,19 @@ function SessionPane({ sessionId }: { sessionId: string }) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex items-center gap-2 border-b border-border-subtle px-4 py-1.5 text-xs text-fg-secondary">
+      <div className="flex items-center gap-2 border-b border-border-subtle px-3 py-1.5 text-xs text-fg-secondary">
+        <button
+          onClick={() => focusSession(null)}
+          className="inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-fg-muted hover:bg-hover hover:text-fg"
+          title="Back to dashboard (Ctrl+D)"
+        >
+          <ArrowLeft size={13} />
+        </button>
         <span className={cn("h-2 w-2 shrink-0 rounded-full", statusColor(status))} />
-        <span className="w-28 shrink-0">{status}</span>
+        <span className="max-w-40 shrink-0 truncate font-medium text-fg">
+          {meta?.title ?? "Session"}
+        </span>
+        <span className="w-24 shrink-0">{status}</span>
 
         <ModelSwitcher
           current={meta?.model ?? ""}
@@ -266,9 +137,9 @@ function SessionPane({ sessionId }: { sessionId: string }) {
           onChange={changeMode}
         />
 
-        {controlError && (
-          <span className="truncate text-danger" title={controlError}>
-            {controlError}
+        {(controlError || attachError) && (
+          <span className="truncate text-danger" title={controlError ?? attachError ?? ""}>
+            {controlError ?? attachError}
           </span>
         )}
         {stats && (
@@ -403,6 +274,10 @@ function ModelSwitcher({
 }
 
 function ItemView({ item }: { item: TranscriptItem }) {
+  const nested =
+    "parent_tool_use_id" in item && item.parent_tool_use_id
+      ? "ml-6 border-l border-border-subtle pl-3"
+      : "";
   switch (item.kind) {
     case "UserText":
       return (
@@ -419,19 +294,29 @@ function ItemView({ item }: { item: TranscriptItem }) {
       );
     case "AssistantText":
       return (
-        <div className="whitespace-pre-wrap text-sm leading-relaxed">
+        <div className={cn("whitespace-pre-wrap text-sm leading-relaxed", nested)}>
           {item.text}
         </div>
       );
     case "Thinking":
       return (
-        <div className="whitespace-pre-wrap border-l-2 border-border pl-3 text-xs italic leading-relaxed text-fg-muted">
+        <div
+          className={cn(
+            "whitespace-pre-wrap border-l-2 border-border pl-3 text-xs italic leading-relaxed text-fg-muted",
+            nested,
+          )}
+        >
           {item.text}
         </div>
       );
     case "ToolUse":
       return (
-        <div className="overflow-hidden rounded-lg border border-border bg-surface font-mono text-xs">
+        <div
+          className={cn(
+            "overflow-hidden rounded-lg border border-border bg-surface font-mono text-xs",
+            nested,
+          )}
+        >
           <div className="flex items-center gap-2 border-b border-border-subtle px-3 py-1.5">
             <Squircle size={12} className="text-accent" />
             <span className="font-medium">{item.name}</span>
@@ -550,7 +435,10 @@ function PermissionCard({
                 onChange={(e) => setMessage(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") respond(false, false, message);
-                  if (e.key === "Escape") setDenying(false);
+                  if (e.key === "Escape") {
+                    e.stopPropagation();
+                    setDenying(false);
+                  }
                 }}
                 placeholder="Reason (optional) — Enter to deny"
                 className="w-64 rounded border border-border bg-elevated px-2 py-1 text-xs focus:border-danger focus:outline-none"

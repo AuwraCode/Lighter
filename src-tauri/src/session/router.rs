@@ -18,8 +18,9 @@ use crate::protocol::{inbound, outbound};
 
 use super::events::{
     Batch, Envelope, PermissionDecisionDto, PermissionOutcome, SessionEvent, SessionSnapshot,
-    SessionStatus,
+    SessionStatus, SessionSummary,
 };
+use super::registry::RegistryMsg;
 use super::spawn::Spawned;
 use super::state::SessionState;
 
@@ -106,6 +107,8 @@ struct Router {
     /// Coalescing buffer for ItemDelta envelopes (seq already assigned).
     delta_buf: Vec<Envelope>,
     flush_armed: bool,
+    registry_tx: mpsc::UnboundedSender<RegistryMsg>,
+    last_summary: Option<SessionSummary>,
 }
 
 pub fn start(
@@ -114,6 +117,7 @@ pub fn start(
     spawned: Spawned,
     initial_prompt: Option<String>,
     channel: Option<Channel<Batch>>,
+    registry_tx: mpsc::UnboundedSender<RegistryMsg>,
 ) -> mpsc::UnboundedSender<SessionCommand> {
     let (cmd_tx, cmd_rx) = mpsc::unbounded_channel();
     let (io_tx, io_rx) = mpsc::unbounded_channel();
@@ -218,6 +222,8 @@ pub fn start(
         focused: true,
         delta_buf: Vec::new(),
         flush_armed: false,
+        registry_tx,
+        last_summary: None,
     };
 
     tokio::spawn(router.run(cmd_rx, io_rx, initial_prompt));
@@ -241,6 +247,7 @@ impl Router {
             self.send_user(prompt);
         }
 
+        self.push_summary();
         loop {
             tokio::select! {
                 cmd = cmd_rx.recv() => match cmd {
@@ -249,9 +256,19 @@ impl Router {
                 },
                 Some(msg) = io_rx.recv() => self.handle_io(msg),
             }
+            self.push_summary();
         }
         tracing::info!(session_id = %self.session_id, "router stopped");
         // Dropping self drops the Job handle → any survivors are killed.
+    }
+
+    /// Feed the dashboard registry, but only when the digest actually changed.
+    fn push_summary(&mut self) {
+        let summary = self.state.summary();
+        if self.last_summary.as_ref() != Some(&summary) {
+            let _ = self.registry_tx.send(RegistryMsg::Update(summary.clone()));
+            self.last_summary = Some(summary);
+        }
     }
 
     fn handle_cmd(&mut self, cmd: SessionCommand) {

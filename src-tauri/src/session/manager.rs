@@ -2,7 +2,7 @@
 //! state lives inside each session's router task.
 
 use std::collections::HashMap;
-use std::sync::Mutex;
+use std::sync::{Mutex, OnceLock};
 
 use tauri::ipc::Channel;
 use tokio::sync::{mpsc, oneshot};
@@ -10,7 +10,11 @@ use uuid::Uuid;
 
 use crate::error::{Error, Result};
 
-use super::events::{Batch, SessionConfig, SessionInfo, SessionSnapshot, SessionStatus};
+use super::events::{
+    Batch, RegistryBatch, SessionConfig, SessionInfo, SessionSnapshot, SessionStatus,
+    SessionSummary,
+};
+use super::registry::{self, RegistryMsg};
 use super::router::{self, SessionCommand};
 use super::spawn;
 use super::state::SessionState;
@@ -24,9 +28,26 @@ pub struct SessionHandle {
 #[derive(Default)]
 pub struct SessionManager {
     sessions: Mutex<HashMap<Uuid, SessionHandle>>,
+    registry_tx: OnceLock<mpsc::UnboundedSender<RegistryMsg>>,
 }
 
 impl SessionManager {
+    /// The registry task is spawned lazily on first use (commands run inside
+    /// the tauri async runtime; construction happens before it exists).
+    fn registry(&self) -> &mpsc::UnboundedSender<RegistryMsg> {
+        self.registry_tx.get_or_init(registry::start)
+    }
+
+    pub async fn attach_registry(
+        &self,
+        channel: Channel<RegistryBatch>,
+    ) -> Result<Vec<SessionSummary>> {
+        let (reply, rx) = oneshot::channel();
+        self.registry()
+            .send(RegistryMsg::Attach { channel, reply })
+            .map_err(|_| Error::SessionGone)?;
+        rx.await.map_err(|_| Error::SessionGone)
+    }
     pub fn create(
         &self,
         mut cfg: SessionConfig,
@@ -56,7 +77,14 @@ impl SessionManager {
         let spawned = spawn::spawn_session(session_id, &cfg)?;
         let state = SessionState::new(session_id, title.clone(), cfg.cwd.clone());
         let initial_prompt = cfg.initial_prompt.clone().filter(|p| !p.trim().is_empty());
-        let tx = router::start(session_id, state, spawned, initial_prompt, Some(channel));
+        let tx = router::start(
+            session_id,
+            state,
+            spawned,
+            initial_prompt,
+            Some(channel),
+            self.registry().clone(),
+        );
 
         self.sessions.lock().unwrap().insert(
             session_id,
@@ -112,6 +140,7 @@ impl SessionManager {
             .remove(&id)
             .ok_or(Error::SessionNotFound)?;
         let _ = handle.tx.send(SessionCommand::Stop { graceful: true });
+        let _ = self.registry().send(RegistryMsg::Removed(id));
         Ok(())
     }
 

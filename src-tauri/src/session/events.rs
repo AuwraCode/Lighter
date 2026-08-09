@@ -300,3 +300,33 @@ pub struct PermissionDecisionDto {
     pub message: Option<String>,
     pub interrupt: bool,
 }
+
+// ---------------------------------------------------------------------------
+// registry (dashboard tiles)
+
+/// Lightweight per-session digest streamed to the dashboard at ~4 Hz.
+#[derive(Debug, Clone, PartialEq, Serialize, TS)]
+#[ts(export)]
+pub struct SessionSummary {
+    pub id: Uuid,
+    pub title: String,
+    pub cwd: String,
+    pub status: SessionStatus,
+    pub model: String,
+    pub permission_mode: String,
+    pub total_cost_usd: f64,
+    pub turns: u32,
+    pub pending_permissions: u32,
+    pub last_snippet: String,
+    pub context_used_tokens: Option<u64>,
+    pub context_window: Option<u64>,
+    pub exited_code: Option<i32>,
+    pub created_at_ms: u64,
+}
+
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export)]
+pub struct RegistryBatch {
+    pub updates: Vec<SessionSummary>,
+    pub removed: Vec<Uuid>,
+}

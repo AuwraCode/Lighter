@@ -18,8 +18,8 @@ use crate::protocol::inbound::{
 
 use super::events::{
     DeltaKind, ExitInfo, HandshakeInfo, PendingPermission, PermissionOutcome, SessionEvent,
-    SessionMeta, SessionSnapshot, SessionStats, SessionStatus, StreamingTail, ToolOutput,
-    TranscriptItem, TurnStats,
+    SessionMeta, SessionSnapshot, SessionStats, SessionStatus, SessionSummary, StreamingTail,
+    ToolOutput, TranscriptItem, TurnStats,
 };
 
 const TOOL_OUTPUT_CAP_BYTES: usize = 128 * 1024;
@@ -52,6 +52,7 @@ pub struct SessionState {
     last_process_cost: f64,
     /// Cost carried over from previous processes of this session (resume).
     base_cost: f64,
+    created_at_ms: u64,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -89,6 +90,47 @@ impl SessionState {
             truncated_head: false,
             last_process_cost: 0.0,
             base_cost: 0.0,
+            created_at_ms: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_millis() as u64)
+                .unwrap_or(0),
+        }
+    }
+
+    /// Digest for the dashboard tile / sidebar row.
+    pub fn summary(&self) -> SessionSummary {
+        let last_snippet = self
+            .items
+            .iter()
+            .rev()
+            .find_map(|item| match item {
+                TranscriptItem::AssistantText { text, .. } if !text.trim().is_empty() => {
+                    Some(truncate_chars(text.trim(), 140))
+                }
+                TranscriptItem::ToolUse { name, .. } => Some(format!("⚙ {name}")),
+                TranscriptItem::UserText { text, injected, .. }
+                    if !injected && !text.trim().is_empty() =>
+                {
+                    Some(format!("› {}", truncate_chars(text.trim(), 140)))
+                }
+                _ => None,
+            })
+            .unwrap_or_default();
+        SessionSummary {
+            id: self.meta.session_id,
+            title: self.meta.title.clone(),
+            cwd: self.meta.cwd.clone(),
+            status: self.status,
+            model: self.meta.model.clone(),
+            permission_mode: self.meta.permission_mode.clone(),
+            total_cost_usd: self.stats.total_cost_usd,
+            turns: self.stats.turns,
+            pending_permissions: self.pending.len() as u32,
+            last_snippet,
+            context_used_tokens: self.stats.context_used_tokens,
+            context_window: self.stats.context_window,
+            exited_code: self.exited.as_ref().and_then(|e| e.code),
+            created_at_ms: self.created_at_ms,
         }
     }
 
@@ -695,6 +737,16 @@ impl SessionState {
         for (ix, item) in self.items.iter().enumerate() {
             self.item_index.insert(item.id().to_string(), ix);
         }
+    }
+}
+
+fn truncate_chars(s: &str, max: usize) -> String {
+    if s.chars().count() <= max {
+        s.to_string()
+    } else {
+        let mut out: String = s.chars().take(max).collect();
+        out.push('…');
+        out
     }
 }
 
