@@ -1,0 +1,71 @@
+@import "tailwindcss";
+
+@theme {
+  /* Base surfaces (dark-first) */
+  --color-bg: #0b0c0e;
+  --color-surface: #121316;
+  --color-elevated: #17191d;
+  --color-raised: #1d2025;
+  --color-hover: #1a1d21;
+
+  /* Borders */
+  --color-border: #26282e;
+  --color-border-subtle: #1a1c20;
+
+  /* Text */
+  --color-fg: #e6e7ea;
+  --color-fg-secondary: #9ca0a8;
+  --color-fg-muted: #646870;
+
+  /* Accents */
+  --color-accent: #7c8cf8;
+  --color-accent-hover: #8f9dfa;
+  --color-accent-muted: #3d448c;
+  --color-success: #4ac26b;
+  --color-warning: #d9a13b;
+  --color-danger: #f2555a;
+  --color-info: #58a6ff;
+
+  /* Typography */
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Code", Consolas,
+    monospace;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-bg text-fg font-sans antialiased;
+    overflow: hidden;
+    /* Desktop-app feel: chrome is not selectable; content areas opt back in */
+    user-select: none;
+    cursor: default;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--color-accent) 35%, transparent);
+  }
+
+  /* Slim dark scrollbars */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #2c2f36 transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: #2c2f36;
+    border-radius: 4px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
