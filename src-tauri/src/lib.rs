@@ -64,6 +64,7 @@ pub fn run() {
             commands::delete_session_record,
             commands::resume_session,
             commands::load_history,
+            commands::get_app_info,
         ])
         .on_window_event(|window, event| {
             // Closing the window gracefully stops every session first so CLIs

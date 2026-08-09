@@ -1,5 +1,7 @@
 import { useEffect } from "react";
-import { Toaster } from "sonner";
+import { invoke } from "@tauri-apps/api/core";
+import { toast, Toaster } from "sonner";
+import type { AppInfo } from "@/lib/generated/AppInfo";
 import { Titlebar } from "@/components/Titlebar";
 import { Sidebar } from "@/components/Sidebar";
 import { SessionView } from "@/components/SessionView";
@@ -17,12 +19,35 @@ import {
   useRegistry,
 } from "@/stores/registry";
 
+async function checkCliVersion() {
+  try {
+    const info = await invoke<AppInfo>("get_app_info");
+    if (!info.claude_path) {
+      toast.error(
+        "Claude Code CLI not found on PATH. Install it and restart Lighter.",
+        { duration: Infinity },
+      );
+    } else if (
+      info.claude_version &&
+      info.claude_version !== info.tested_cli_version
+    ) {
+      toast.info(
+        `claude ${info.claude_version} detected — Lighter's protocol layer was verified against ${info.tested_cli_version}. Unknown frames are tolerated, but re-run the probe after big CLI updates.`,
+        { duration: 10000 },
+      );
+    }
+  } catch {
+    // Non-fatal; sessions will surface concrete spawn errors themselves.
+  }
+}
+
 function App() {
   const focusedId = useRegistry((s) => s.focusedId);
 
   useEffect(() => {
     void initRegistry();
     void loadPresets();
+    void checkCliVersion();
   }, []);
 
   // Global shortcuts: Ctrl+1..8 focus nth session, Ctrl+D dashboard,

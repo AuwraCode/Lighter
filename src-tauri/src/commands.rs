@@ -213,3 +213,50 @@ pub async fn load_history(session_id: Uuid, cwd: String) -> Result<Vec<Transcrip
         .await
         .map_err(|e| Error::Control(e.to_string()))?
 }
+
+/// The CLI version the protocol fixtures were captured against.
+pub const TESTED_CLI_VERSION: &str = "2.1.226";
+
+#[derive(Debug, Clone, serde::Serialize, ts_rs::TS)]
+#[ts(export)]
+pub struct AppInfo {
+    pub claude_path: Option<String>,
+    pub claude_version: Option<String>,
+    pub tested_cli_version: String,
+    pub app_version: String,
+}
+
+#[tauri::command]
+pub async fn get_app_info(app: tauri::AppHandle) -> AppInfo {
+    let app_version = app.package_info().version.to_string();
+    tauri::async_runtime::spawn_blocking(move || {
+        let claude_path = crate::session::spawn::resolve_claude_bin()
+            .ok()
+            .map(|p| p.to_string_lossy().to_string());
+        let claude_version = claude_path.as_ref().and_then(|path| {
+            let mut cmd = std::process::Command::new(path);
+            cmd.arg("--version");
+            #[cfg(windows)]
+            {
+                use std::os::windows::process::CommandExt;
+                cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
+            }
+            let output = cmd.output().ok()?;
+            let text = String::from_utf8_lossy(&output.stdout);
+            text.split_whitespace().next().map(String::from)
+        });
+        AppInfo {
+            claude_path,
+            claude_version,
+            tested_cli_version: TESTED_CLI_VERSION.to_string(),
+            app_version,
+        }
+    })
+    .await
+    .unwrap_or(AppInfo {
+        claude_path: None,
+        claude_version: None,
+        tested_cli_version: TESTED_CLI_VERSION.to_string(),
+        app_version: String::new(),
+    })
+}
