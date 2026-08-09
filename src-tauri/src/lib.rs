@@ -1,5 +1,7 @@
 pub mod commands;
 pub mod error;
+pub mod persistence;
+pub mod presets;
 pub mod protocol;
 pub mod session;
 
@@ -29,6 +31,11 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .manage(SessionManager::default())
+        .setup(|app| {
+            let dir = app.path().app_config_dir()?;
+            app.manage(presets::Presets::load(persistence::Store::new(dir)));
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             commands::create_session,
             commands::attach_session,
@@ -42,6 +49,9 @@ pub fn run() {
             commands::list_sessions,
             commands::set_focus,
             commands::attach_registry,
+            commands::list_presets,
+            commands::save_preset,
+            commands::delete_preset,
         ])
         .on_window_event(|window, event| {
             // Closing the window gracefully stops every session first so CLIs

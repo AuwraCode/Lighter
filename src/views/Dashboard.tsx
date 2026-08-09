@@ -1,16 +1,42 @@
-import { Plus, Trash2, Zap } from "lucide-react";
+import { useState } from "react";
+import { Loader2, Pencil, Play, Plus, Trash2, Zap } from "lucide-react";
 import { cn } from "@/lib/cn";
 import * as ipc from "@/lib/ipc";
+import type { Preset } from "@/lib/generated/Preset";
 import type { SessionSummary } from "@/lib/generated/SessionSummary";
 import { statusColor, statusLabel } from "@/lib/status";
 import { focusSession, openNewSession, useRegistry } from "@/stores/registry";
 import { dropSessionStore } from "@/stores/session";
+import { editPreset, launchPreset, usePresets } from "@/stores/presets";
 
 export function Dashboard() {
   const order = useRegistry((s) => s.order);
+  const presets = usePresets((s) => s.presets);
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto p-5">
+      <div className="mb-3 flex items-center justify-between">
+        <h1 className="text-sm font-semibold tracking-tight">Presets</h1>
+        <button
+          onClick={() => editPreset("new")}
+          className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-xs text-fg-secondary hover:bg-hover hover:text-fg"
+        >
+          <Plus size={12} /> New preset
+        </button>
+      </div>
+      {presets.length === 0 ? (
+        <div className="mb-6 rounded-lg border border-dashed border-border px-4 py-3 text-xs text-fg-muted">
+          Save a named launch configuration (folder, model, permission mode,
+          prompts) and start it with one click.
+        </div>
+      ) : (
+        <div className="mb-6 grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-2.5">
+          {presets.map((p) => (
+            <PresetCard key={p.id} preset={p} />
+          ))}
+        </div>
+      )}
+
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-sm font-semibold tracking-tight">Sessions</h1>
         <button
@@ -30,6 +56,58 @@ export function Dashboard() {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function PresetCard({ preset }: { preset: Preset }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const launch = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await launchPreset(preset);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="group flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2.5 transition-colors hover:border-fg-muted/40">
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-[13px] font-medium">{preset.name}</div>
+        <div
+          className="truncate font-mono text-[10px] text-fg-muted"
+          title={error ?? preset.cwd}
+        >
+          {error ? (
+            <span className="text-danger">{error}</span>
+          ) : (
+            <>
+              {preset.model || "default"} · {preset.permission_mode || "default"}
+            </>
+          )}
+        </div>
+      </div>
+      <button
+        onClick={() => editPreset(preset.id)}
+        title="Edit preset"
+        className="hidden shrink-0 rounded p-1.5 text-fg-muted hover:bg-hover hover:text-fg group-hover:block"
+      >
+        <Pencil size={13} />
+      </button>
+      <button
+        onClick={launch}
+        disabled={busy}
+        title="Launch session"
+        className="inline-flex shrink-0 items-center justify-center rounded-md bg-accent/15 p-2 text-accent hover:bg-accent hover:text-white disabled:opacity-50"
+      >
+        {busy ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
+      </button>
     </div>
   );
 }

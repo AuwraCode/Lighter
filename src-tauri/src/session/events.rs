@@ -229,6 +229,8 @@ pub struct SessionConfig {
     pub initial_prompt: Option<String>,
     /// Resume an existing CLI session id instead of starting fresh.
     pub resume_session_id: Option<String>,
+    /// "auto" | "always" | "never" — git worktree isolation (phase 7).
+    pub worktree_policy: Option<String>,
 }
 
 impl Default for SessionConfig {
@@ -244,6 +246,7 @@ impl Default for SessionConfig {
             append_system_prompt: None,
             initial_prompt: None,
             resume_session_id: None,
+            worktree_policy: None,
         }
     }
 }

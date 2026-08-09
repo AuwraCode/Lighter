@@ -51,6 +51,7 @@ export function NewSessionDialog() {
           append_system_prompt: null,
           initial_prompt: prompt.trim() || null,
           resume_session_id: null,
+          worktree_policy: null,
         },
         // SessionView attaches on mount and hydrates from the snapshot;
         // nothing to do with pre-attach batches.

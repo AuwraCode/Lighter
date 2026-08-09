@@ -9,4 +9,8 @@ permission_mode: string | null, effort: string | null, allowed_tools: Array<stri
 /**
  * Resume an existing CLI session id instead of starting fresh.
  */
-resume_session_id: string | null, };
+resume_session_id: string | null, 
+/**
+ * "auto" | "always" | "never" — git worktree isolation (phase 7).
+ */
+worktree_policy: string | null, };

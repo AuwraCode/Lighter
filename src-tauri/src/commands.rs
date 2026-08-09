@@ -7,6 +7,7 @@ use tokio::sync::oneshot;
 use uuid::Uuid;
 
 use crate::error::{Error, Result};
+use crate::presets::{Preset, Presets};
 use crate::session::events::{
     Batch, PermissionDecisionDto, RegistryBatch, SessionConfig, SessionInfo, SessionSnapshot,
     SessionSummary,
@@ -133,4 +134,25 @@ pub async fn attach_registry(
     channel: Channel<RegistryBatch>,
 ) -> Result<Vec<SessionSummary>> {
     manager.attach_registry(channel).await
+}
+
+#[tauri::command]
+pub fn list_presets(presets: State<'_, Presets>) -> Vec<Preset> {
+    presets.list()
+}
+
+#[tauri::command]
+pub fn save_preset(presets: State<'_, Presets>, preset: Preset) -> Result<Preset> {
+    if preset.name.trim().is_empty() {
+        return Err(Error::InvalidInput("preset name is required".into()));
+    }
+    if preset.cwd.trim().is_empty() {
+        return Err(Error::InvalidInput("preset directory is required".into()));
+    }
+    presets.save(preset)
+}
+
+#[tauri::command]
+pub fn delete_preset(presets: State<'_, Presets>, preset_id: Uuid) -> Result<()> {
+    presets.delete(preset_id)
 }

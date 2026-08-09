@@ -3,7 +3,9 @@ import { Titlebar } from "@/components/Titlebar";
 import { Sidebar } from "@/components/Sidebar";
 import { SessionView } from "@/components/SessionView";
 import { NewSessionDialog } from "@/components/NewSessionDialog";
+import { PresetDialog } from "@/components/PresetDialog";
 import { Dashboard } from "@/views/Dashboard";
+import { loadPresets } from "@/stores/presets";
 import {
   focusSession,
   initRegistry,
@@ -17,6 +19,7 @@ function App() {
 
   useEffect(() => {
     void initRegistry();
+    void loadPresets();
   }, []);
 
   // Global shortcuts: Ctrl+1..8 focus nth session, Ctrl+D dashboard, Ctrl+N new.
@@ -60,6 +63,7 @@ function App() {
         </main>
       </div>
       <NewSessionDialog />
+      <PresetDialog />
     </div>
   );
 }
