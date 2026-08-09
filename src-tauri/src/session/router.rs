@@ -458,8 +458,10 @@ impl Router {
         }
         let frame = outbound::user_message(&text);
         self.send_data_line(frame.to_string());
-        let ev = self.state.mark_working_on_send();
-        self.emit(ev.into_iter().collect());
+        // Instant echo: the message shows up before the CLI round trip.
+        let mut events = self.state.push_local_user(&text);
+        events.extend(self.state.mark_working_on_send());
+        self.emit(events);
     }
 
     fn respond_permission(
@@ -489,7 +491,9 @@ impl Router {
             let frame = outbound::permission_response(
                 request_id,
                 &outbound::PermissionDecision::Allow {
-                    updated_input: pending.input.clone(),
+                    updated_input: decision
+                        .updated_input
+                        .unwrap_or_else(|| pending.input.clone()),
                     updated_permissions,
                 },
             );

@@ -26,6 +26,7 @@ const SCENARIOS: &[&str] = &[
     "resume",
     "compact",
     "subagent",
+    "ask_question",
 ];
 
 #[derive(Debug)]
@@ -616,6 +617,64 @@ async fn scenario_subagent() {
     p.write_fixture("subagent");
 }
 
+/// AskUserQuestion: the client is expected to collect answers inside the
+/// can_use_tool flow and return them via updatedInput.answers. Verify.
+async fn scenario_ask_question() {
+    let cwd = workspace("ask_question", false);
+    let mut p = Probe::spawn(&cwd, &["--permission-mode", "default"], None).await;
+    p.send_user(
+        "Use the AskUserQuestion tool to ask me ONE question: which color do I prefer, with exactly two options: Red and Blue. Afterwards, tell me in plain text which color I chose.",
+    )
+    .await;
+
+    let deadline = Instant::now() + Duration::from_secs(120);
+    loop {
+        let left = deadline.saturating_duration_since(Instant::now());
+        if left.is_zero() {
+            break;
+        }
+        match p.recv(left).await {
+            Some(Msg::FromCli(v)) => {
+                if v["type"] == "control_request"
+                    && v["request"]["subtype"] == "can_use_tool"
+                {
+                    let req_id = v["request_id"].as_str().unwrap_or_default().to_string();
+                    let tool = v["request"]["tool_name"].as_str().unwrap_or_default();
+                    let mut input = v["request"]["input"].clone();
+                    if tool == "AskUserQuestion" {
+                        // Answer the first question with its first option label.
+                        let question = input["questions"][0]["question"]
+                            .as_str()
+                            .unwrap_or("?")
+                            .to_string();
+                        let label = input["questions"][0]["options"][0]["label"]
+                            .as_str()
+                            .unwrap_or("Red")
+                            .to_string();
+                        input["answers"] = json!({ question.clone(): label.clone() });
+                        p.record(
+                            "meta",
+                            json!({ "event": "answering_question", "question": question, "label": label }),
+                        );
+                    }
+                    p.send_permission_response(
+                        &req_id,
+                        json!({ "behavior": "allow", "updatedInput": input }),
+                    )
+                    .await;
+                }
+                if is_result(&v) {
+                    break;
+                }
+            }
+            Some(Msg::Exit(_)) | None => break,
+            Some(_) => {}
+        }
+    }
+    p.shutdown().await;
+    p.write_fixture("ask_question");
+}
+
 #[tokio::main]
 async fn main() {
     let arg = std::env::args().nth(1).unwrap_or_else(|| "all".into());
@@ -640,6 +699,7 @@ async fn main() {
                 "resume" => scenario_resume().await,
                 "compact" => scenario_compact().await,
                 "subagent" => scenario_subagent().await,
+                "ask_question" => scenario_ask_question().await,
                 other => println!("  unknown scenario: {other}"),
             }
         };

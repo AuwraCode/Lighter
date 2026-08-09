@@ -6,7 +6,7 @@
 //! receives as a snapshot. Both views are produced by the same code path, so
 //! they can never disagree.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 
 use serde_json::Value;
 use uuid::Uuid;
@@ -53,6 +53,8 @@ pub struct SessionState {
     /// Cost carried over from previous processes of this session (resume).
     base_cost: f64,
     created_at_ms: u64,
+    /// Optimistic local user echoes awaiting their CLI replay (id, text).
+    pending_local_user: VecDeque<(String, String)>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -98,6 +100,7 @@ impl SessionState {
             truncated_head: false,
             last_process_cost: 0.0,
             base_cost: 0.0,
+            pending_local_user: VecDeque::new(),
             created_at_ms: std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .map(|d| d.as_millis() as u64)
@@ -293,6 +296,11 @@ impl SessionState {
                     }
                 }
                 ContentBlock::Text { text } => {
+                    // Replay echoes confirm messages we already showed
+                    // optimistically — never render them twice.
+                    if user.is_replay && self.consume_local_echo(text) {
+                        continue;
+                    }
                     let item = TranscriptItem::UserText {
                         id: format!("{uuid}:{i}"),
                         text: text.clone(),
@@ -304,6 +312,34 @@ impl SessionState {
             }
         }
         evs
+    }
+
+    /// Instant local echo for a message we just wrote to stdin. The CLI's
+    /// replay frame later confirms it (and is deduped against this item).
+    pub fn push_local_user(&mut self, text: &str) -> Vec<SessionEvent> {
+        let id = format!("local:{}", Uuid::new_v4());
+        self.pending_local_user.push_back((id.clone(), text.to_string()));
+        if self.pending_local_user.len() > 64 {
+            self.pending_local_user.pop_front();
+        }
+        self.push_item(TranscriptItem::UserText {
+            id,
+            text: text.to_string(),
+            injected: false,
+        })
+    }
+
+    fn consume_local_echo(&mut self, text: &str) -> bool {
+        if let Some(pos) = self
+            .pending_local_user
+            .iter()
+            .position(|(_, t)| t == text)
+        {
+            self.pending_local_user.remove(pos);
+            true
+        } else {
+            false
+        }
     }
 
     fn apply_assistant(&mut self, frame: AssistantFrame) -> Vec<SessionEvent> {
@@ -747,6 +783,58 @@ impl SessionState {
         for (ix, item) in self.items.iter().enumerate() {
             self.item_index.insert(item.id().to_string(), ix);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::protocol::inbound::{ApiMessage, UserFrame};
+
+    fn replay(text: &str, uuid: &str) -> Frame {
+        Frame::User(UserFrame {
+            message: ApiMessage {
+                id: None,
+                role: "user".into(),
+                model: None,
+                content: vec![ContentBlock::Text { text: text.into() }],
+                stop_reason: None,
+                usage: None,
+            },
+            is_replay: true,
+            parent_tool_use_id: None,
+            tool_use_result: None,
+            session_id: None,
+            uuid: Some(uuid.into()),
+        })
+    }
+
+    #[test]
+    fn local_echo_shows_instantly_and_dedupes_the_replay() {
+        let mut s = SessionState::new(Uuid::nil(), "t".into(), "c".into(), None, None);
+
+        let evs = s.push_local_user("hello");
+        assert_eq!(evs.len(), 1, "echo emits one ItemCompleted");
+        assert_eq!(s.items.len(), 1);
+
+        // The CLI's replay of the same text must not duplicate the item.
+        let evs = s.apply_frame(replay("hello", "u1"));
+        assert!(evs.is_empty());
+        assert_eq!(s.items.len(), 1);
+
+        // A replay we never locally echoed still appends normally.
+        s.apply_frame(replay("other", "u2"));
+        assert_eq!(s.items.len(), 2);
+
+        // Two identical sends → two items, each consumed once.
+        s.push_local_user("dup");
+        s.push_local_user("dup");
+        assert_eq!(s.items.len(), 4);
+        s.apply_frame(replay("dup", "u3"));
+        s.apply_frame(replay("dup", "u4"));
+        assert_eq!(s.items.len(), 4, "replays consumed both echoes");
+        s.apply_frame(replay("dup", "u5"));
+        assert_eq!(s.items.len(), 5, "third replay has no echo left");
     }
 }
 

@@ -493,6 +493,7 @@ fn permission_flow_allow_and_deny() {
                         use_suggestions: false,
                         message: (!allow).then(|| "Not allowed in this test".to_string()),
                         interrupt: false,
+                        updated_input: None,
                     },
                     reply,
                 },
@@ -637,6 +638,16 @@ fn single_session_roundtrip_interrupt_and_stop() {
         assert!(deltas > 0, "no streaming deltas observed");
         let turn = has_event(&events, "TurnCompleted").next().unwrap();
         assert!(turn["stats"]["total_cost_usd"].as_f64().unwrap() > 0.0);
+        // Optimistic echo: shown instantly once, replay deduped (no double).
+        let user_items = events
+            .iter()
+            .filter(|e| {
+                e["type"] == "ItemCompleted"
+                    && e["item"]["kind"] == "UserText"
+                    && e["item"]["text"] == "Say exactly: ROUNDTRIP"
+            })
+            .count();
+        assert_eq!(user_items, 1, "user message must appear exactly once");
     }
     println!("turn 1 ok");
 

@@ -310,6 +310,9 @@ pub struct PermissionDecisionDto {
     pub use_suggestions: bool,
     pub message: Option<String>,
     pub interrupt: bool,
+    /// Replace the tool input on allow (AskUserQuestion answers live here).
+    #[serde(default)]
+    pub updated_input: Option<Value>,
 }
 
 // ---------------------------------------------------------------------------

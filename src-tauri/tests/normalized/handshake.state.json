@@ -23,6 +23,7 @@
   ],
   "last_seq": 15,
   "meta": {
+    "claude_config_dir": null,
     "claude_version": "2.1.226",
     "cwd": "C:\\Users\\USER\\AppData\\Local\\Temp\\lighter-probe\\handshake",
     "model": "claude-haiku-4-5-20251001",

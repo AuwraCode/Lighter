@@ -101,6 +101,7 @@ export function SessionView({
             use_suggestions: false,
             message: "Interrupted by user",
             interrupt: true,
+            updated_input: null,
           })
           .catch(() => {});
       } else {
@@ -223,18 +224,18 @@ export function SessionView({
             setShowJump(!isAtBottom);
           }}
           itemContent={(_, item) => (
-            <div className="mx-auto w-full max-w-3xl px-4 pb-3">
+            <div className="w-full px-4 pb-3">
               <MemoItemView item={item} streaming={streaming.has(item.id)} />
             </div>
           )}
           components={{
             Header: () => (
-              <div className="mx-auto w-full max-w-3xl px-4 py-3">
+              <div className="w-full px-4 py-3">
                 <LoadHistoryButton sessionId={sessionId} />
               </div>
             ),
             Footer: () => (
-              <div className="mx-auto w-full max-w-3xl px-4 pb-3">
+              <div className="w-full px-4 pb-3">
                 {exited && (
                   <div className="rounded-lg border border-danger/40 bg-danger/10 p-3 text-xs">
                     <div className="font-medium text-danger">
@@ -263,9 +264,13 @@ export function SessionView({
 
       {pending.length > 0 && (
         <div className="flex flex-col gap-2 border-t border-border-subtle px-4 py-2">
-          {pending.map((p) => (
-            <PermissionCard key={p.request_id} sessionId={sessionId} pending={p} />
-          ))}
+          {pending.map((p) =>
+            p.tool_name === "AskUserQuestion" ? (
+              <QuestionCard key={p.request_id} sessionId={sessionId} pending={p} />
+            ) : (
+              <PermissionCard key={p.request_id} sessionId={sessionId} pending={p} />
+            ),
+          )}
         </div>
       )}
 
@@ -343,6 +348,7 @@ function PermissionCard({
         use_suggestions: useSuggestions,
         message: allow ? null : denyMessage || "Denied by user",
         interrupt: false,
+        updated_input: null,
       })
       .catch(() => {})
       .finally(() => setBusy(false));
@@ -420,6 +426,149 @@ function PermissionCard({
   );
 }
 
+interface QuestionSpec {
+  question: string;
+  header?: string;
+  multiSelect?: boolean;
+  options: { label: string; description?: string }[];
+}
+
+/** Claude's AskUserQuestion tool rendered as a real question form. Answers go
+ *  back through the permission response as updatedInput.answers
+ *  ({"<question>": "<label>"}) — contract verified live (ask_question fixture). */
+function QuestionCard({
+  sessionId,
+  pending,
+}: {
+  sessionId: string;
+  pending: PendingPermission;
+}) {
+  const input = (pending.input ?? {}) as Record<string, unknown>;
+  const questions: QuestionSpec[] = Array.isArray(input.questions)
+    ? (input.questions as QuestionSpec[])
+    : [];
+  const [answers, setAnswers] = useState<Record<number, string[]>>({});
+  const [other, setOther] = useState<Record<number, string>>({});
+  const [busy, setBusy] = useState(false);
+
+  const pick = (qi: number, label: string, multi: boolean) => {
+    setAnswers((prev) => {
+      const current = prev[qi] ?? [];
+      if (!multi) return { ...prev, [qi]: [label] };
+      return {
+        ...prev,
+        [qi]: current.includes(label)
+          ? current.filter((l) => l !== label)
+          : [...current, label],
+      };
+    });
+  };
+
+  const answerFor = (qi: number): string[] => {
+    const picked = answers[qi] ?? [];
+    const custom = (other[qi] ?? "").trim();
+    return custom ? [...picked, custom] : picked;
+  };
+
+  const complete =
+    questions.length > 0 && questions.every((_, i) => answerFor(i).length > 0);
+
+  const submit = () => {
+    setBusy(true);
+    const updated = {
+      ...input,
+      answers: Object.fromEntries(
+        questions.map((q, i) => [q.question, answerFor(i).join(", ")]),
+      ),
+    };
+    void ipc
+      .respondPermission(sessionId, pending.request_id, {
+        allow: true,
+        use_suggestions: false,
+        message: null,
+        interrupt: false,
+        updated_input: updated,
+      })
+      .catch((e) => toast.error(String(e)))
+      .finally(() => setBusy(false));
+  };
+
+  return (
+    <div className="rounded-lg border border-info/40 bg-info/10 px-3 py-2.5 text-xs">
+      <div className="mb-2 flex items-center gap-2 font-medium text-info">
+        <ShieldQuestion size={14} />
+        Claude asks
+      </div>
+      <div className="flex flex-col gap-3">
+        {questions.map((q, qi) => (
+          <div key={qi}>
+            <div className="mb-1.5 flex items-center gap-2">
+              {q.header && (
+                <span className="rounded bg-info/15 px-1.5 py-0.5 text-[10px] font-medium text-info">
+                  {q.header}
+                </span>
+              )}
+              <span className="text-fg">{q.question}</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {q.options.map((o) => {
+                const selected = (answers[qi] ?? []).includes(o.label);
+                return (
+                  <button
+                    key={o.label}
+                    title={o.description}
+                    onClick={() => pick(qi, o.label, !!q.multiSelect)}
+                    className={cn(
+                      "rounded-md border px-2.5 py-1 transition-colors",
+                      selected
+                        ? "border-info bg-info/20 text-fg"
+                        : "border-border bg-elevated text-fg-secondary hover:bg-hover hover:text-fg",
+                    )}
+                  >
+                    {o.label}
+                  </button>
+                );
+              })}
+              <input
+                value={other[qi] ?? ""}
+                onChange={(e) => setOther((p) => ({ ...p, [qi]: e.target.value }))}
+                placeholder="Other…"
+                className="w-32 rounded-md border border-border bg-elevated px-2 py-1 placeholder:text-fg-muted focus:border-info focus:outline-none"
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="mt-2.5 flex justify-end gap-1.5">
+        <button
+          disabled={busy}
+          onClick={() =>
+            void ipc
+              .respondPermission(sessionId, pending.request_id, {
+                allow: false,
+                use_suggestions: false,
+                message: "User dismissed the question",
+                interrupt: false,
+                updated_input: null,
+              })
+              .catch(() => {})
+          }
+          className="rounded-md px-2.5 py-1 text-fg-muted hover:bg-hover hover:text-fg"
+        >
+          Dismiss
+        </button>
+        <button
+          disabled={busy || !complete}
+          onClick={submit}
+          className="rounded-md bg-info/20 px-3 py-1 font-medium text-info hover:bg-info/30 disabled:opacity-40"
+        >
+          Answer
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function Composer({ sessionId, disabled }: { sessionId: string; disabled: boolean }) {
   const [text, setText] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -443,20 +592,20 @@ function Composer({ sessionId, disabled }: { sessionId: string; disabled: boolea
 
   return (
     <div className="border-t border-border-subtle p-3">
-      <div className="mx-auto flex max-w-3xl items-end gap-2">
+      <div className="flex items-end gap-2">
         <textarea
           ref={textareaRef}
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+            if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
               send();
             }
           }}
           disabled={disabled}
           rows={2}
-          placeholder="Message Claude… (Ctrl+Enter to send, Esc to interrupt, Ctrl+K commands)"
+          placeholder="Message Claude… (Enter to send, Shift+Enter for a new line, Esc to interrupt)"
           className="min-h-[3rem] flex-1 resize-none rounded-lg border border-border bg-elevated px-3 py-2 text-sm placeholder:text-fg-muted focus:border-accent focus:outline-none disabled:opacity-50"
         />
         <button
