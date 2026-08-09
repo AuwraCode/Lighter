@@ -20,6 +20,7 @@ import {
 import { cn } from "@/lib/cn";
 import * as ipc from "@/lib/ipc";
 import { statusColor, statusDotClass } from "@/lib/status";
+import logo from "@/assets/logo.png";
 import { SessionView } from "@/components/SessionView";
 import { ModeSwitcher } from "@/components/SessionControls";
 import {
@@ -220,9 +221,7 @@ export function Workspace() {
 function EmptyWorkspace() {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-4">
-      <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-border bg-elevated">
-        <Columns2 size={26} className="text-accent" />
-      </div>
+      <img src={logo} alt="Lighter" className="h-16 w-16 drop-shadow-lg" />
       <div className="text-center">
         <div className="text-sm font-medium">Split view is empty</div>
         <p className="mt-1 max-w-72 text-xs text-fg-secondary">

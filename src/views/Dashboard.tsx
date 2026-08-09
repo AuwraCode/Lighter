@@ -9,9 +9,9 @@ import {
   Trash2,
   UserRound,
   X,
-  Zap,
 } from "lucide-react";
 import { openProfilesDialog } from "@/stores/profiles";
+import logo from "@/assets/logo.png";
 import { cn } from "@/lib/cn";
 import * as ipc from "@/lib/ipc";
 import type { Preset } from "@/lib/generated/Preset";
@@ -238,9 +238,7 @@ function PresetCard({ preset }: { preset: Preset }) {
 function EmptyState() {
   return (
     <div className="flex flex-col items-center justify-center gap-4 py-24">
-      <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-border bg-elevated">
-        <Zap size={26} className="text-accent" />
-      </div>
+      <img src={logo} alt="Lighter" className="h-16 w-16 drop-shadow-lg" />
       <div className="text-center">
         <div className="text-sm font-medium">No sessions yet</div>
         <p className="mt-1 max-w-72 text-xs text-fg-secondary">
