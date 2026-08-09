@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { Minus, Square, Copy, X } from "lucide-react";
+import { Feather, Minus, Square, Copy, X } from "lucide-react";
 import { cn } from "@/lib/cn";
 
 const appWindow = getCurrentWindow();
@@ -54,9 +54,10 @@ export function Titlebar() {
       className="relative z-50 flex h-9 shrink-0 items-center border-b border-border-subtle bg-bg"
     >
       <div data-tauri-drag-region className="flex items-center gap-2 pl-3">
-        <span
+        <Feather
           data-tauri-drag-region
-          className="h-2.5 w-2.5 rounded-[4px] bg-accent"
+          size={13}
+          className="pointer-events-none text-accent"
         />
         <span
           data-tauri-drag-region
