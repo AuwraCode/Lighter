@@ -2,7 +2,7 @@
 // permissions. Mounted with key={sessionId}; always (re)attaches on mount —
 // the atomic snapshot makes that lossless.
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "zustand";
 import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 import { toast } from "sonner";
@@ -33,7 +33,13 @@ import { focusSession, registryStore, useRegistry } from "@/stores/registry";
 import { statusDotClass } from "@/lib/status";
 import type { SessionStatus } from "@/lib/generated/SessionStatus";
 import { MemoItemView } from "./TranscriptItems";
-import { AccountChip, ModelSwitcher, ModeSwitcher } from "./SessionControls";
+import {
+  AccountChip,
+  ModelSwitcher,
+  ModeSwitcher,
+  slashCommandsFrom,
+  type SlashCommand,
+} from "./SessionControls";
 
 export function SessionView({
   sessionId,
@@ -598,9 +604,18 @@ function QuestionCard({
   );
 }
 
+/** The whole input is a slash-command prefix (no whitespace typed yet). */
+const SLASH_PREFIX = /^\/(\S*)$/;
+const NO_COMMANDS: string[] = [];
+
 function Composer({ sessionId, disabled }: { sessionId: string; disabled: boolean }) {
   const [text, setText] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+
+  const store = getOrCreateSessionStore(sessionId);
+  const handshake = useStore(store, (s) => s.handshake);
+  const fallbackNames = useStore(store, (s) => s.meta?.slash_commands ?? NO_COMMANDS);
 
   // Palette "insert slash command" payloads.
   const insert = useRegistry((s) => s.composerInsert);
@@ -612,6 +627,45 @@ function Composer({ sessionId, disabled }: { sessionId: string; disabled: boolea
     }
   }, [insert, sessionId]);
 
+  // ------------------------------------------------- slash autocomplete
+  const commands = useMemo(
+    () => slashCommandsFrom(handshake, fallbackNames),
+    [handshake, fallbackNames],
+  );
+  const [dismissedFor, setDismissedFor] = useState<string | null>(null);
+  const suggestions = useMemo(() => {
+    const match = SLASH_PREFIX.exec(text);
+    if (!match) return [];
+    const q = match[1].toLowerCase();
+    const starts = commands.filter((c) => c.name.toLowerCase().startsWith(q));
+    const aliased = commands.filter(
+      (c) =>
+        !starts.includes(c) &&
+        c.aliases?.some((a) => a.toLowerCase().startsWith(q)),
+    );
+    const contains = q
+      ? commands.filter(
+          (c) =>
+            !starts.includes(c) &&
+            !aliased.includes(c) &&
+            c.name.toLowerCase().includes(q),
+        )
+      : [];
+    return [...starts, ...aliased, ...contains].slice(0, 8);
+  }, [commands, text]);
+  const open = suggestions.length > 0 && dismissedFor !== text && !disabled;
+  const [sel, setSel] = useState(0);
+  useEffect(() => setSel(0), [text]);
+  useEffect(() => {
+    listRef.current?.children[sel]?.scrollIntoView({ block: "nearest" });
+  }, [sel, open]);
+
+  const accept = useCallback((cmd: SlashCommand) => {
+    setText(`/${cmd.name} `);
+    setDismissedFor(null);
+    requestAnimationFrame(() => textareaRef.current?.focus());
+  }, []);
+
   const send = useCallback(() => {
     const trimmed = text.trim();
     if (!trimmed) return;
@@ -619,24 +673,100 @@ function Composer({ sessionId, disabled }: { sessionId: string; disabled: boolea
     void ipc.sendUserMessage(sessionId, trimmed).catch((e) => toast.error(String(e)));
   }, [sessionId, text]);
 
+  const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (open) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setSel((s) => (s + 1) % suggestions.length);
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setSel((s) => (s - 1 + suggestions.length) % suggestions.length);
+        return;
+      }
+      if (e.key === "Tab") {
+        e.preventDefault();
+        accept(suggestions[sel]);
+        return;
+      }
+      if (e.key === "Escape") {
+        // Close the popup only — don't let SessionView interrupt the session.
+        e.preventDefault();
+        e.stopPropagation();
+        setDismissedFor(text);
+        return;
+      }
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        // Exactly-typed command sends immediately; otherwise complete it.
+        if (`/${suggestions[sel].name}` === text.trim()) {
+          send();
+        } else {
+          accept(suggestions[sel]);
+        }
+        return;
+      }
+    }
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      send();
+    }
+  };
+
   return (
     <div className="border-t border-border-subtle p-3">
       <div className="flex items-end gap-2">
-        <textarea
-          ref={textareaRef}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              send();
-            }
-          }}
-          disabled={disabled}
-          rows={2}
-          placeholder="Message Claude… (Enter to send, Shift+Enter for a new line, Esc to interrupt)"
-          className="min-h-[3rem] flex-1 resize-none rounded-lg border border-border bg-elevated px-3 py-2 text-sm placeholder:text-fg-muted focus:border-accent focus:outline-none disabled:opacity-50"
-        />
+        <div className="relative min-w-0 flex-1">
+          {open && (
+            <div
+              ref={listRef}
+              className="absolute bottom-full left-0 right-0 z-30 mb-1.5 max-h-64 overflow-y-auto rounded-lg border border-border bg-elevated p-1 shadow-2xl"
+            >
+              {suggestions.map((c, i) => (
+                <button
+                  key={c.name}
+                  onMouseDown={(e) => {
+                    e.preventDefault(); // keep textarea focus
+                    accept(c);
+                  }}
+                  onMouseEnter={() => setSel(i)}
+                  className={cn(
+                    "flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-xs",
+                    i === sel ? "bg-hover text-fg" : "text-fg-secondary",
+                  )}
+                >
+                  <span className="shrink-0 font-mono text-accent">/{c.name}</span>
+                  {c.argumentHint && (
+                    <span className="shrink-0 font-mono text-[10px] text-fg-muted">
+                      {c.argumentHint}
+                    </span>
+                  )}
+                  {c.description && (
+                    <span className="min-w-0 flex-1 truncate text-fg-muted">
+                      {c.description}
+                    </span>
+                  )}
+                  {i === sel && (
+                    <kbd className="ml-auto shrink-0 rounded border border-border bg-surface px-1 py-0.5 font-mono text-[9px] text-fg-muted">
+                      Tab
+                    </kbd>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+          <textarea
+            ref={textareaRef}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={onKeyDown}
+            disabled={disabled}
+            rows={2}
+            placeholder="Message Claude… ( / for commands, Enter to send, Shift+Enter for a new line )"
+            className="min-h-[3rem] w-full resize-none rounded-lg border border-border bg-elevated px-3 py-2 text-sm placeholder:text-fg-muted focus:border-accent focus:outline-none disabled:opacity-50"
+          />
+        </div>
         <button
           onClick={send}
           disabled={disabled || !text.trim()}

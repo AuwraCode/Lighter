@@ -83,6 +83,25 @@ export function ModelSwitcher({
   );
 }
 
+export interface SlashCommand {
+  name: string;
+  description?: string;
+  argumentHint?: string;
+  aliases?: string[];
+}
+
+/** Slash commands for this session: rich list from the initialize handshake,
+ *  bare names from init as a fallback. */
+export function slashCommandsFrom(
+  handshake: HandshakeInfo | null,
+  fallbackNames: string[],
+): SlashCommand[] {
+  if (Array.isArray(handshake?.commands)) {
+    return handshake!.commands as unknown as SlashCommand[];
+  }
+  return fallbackNames.map((name) => ({ name }));
+}
+
 /** Which account this session actually runs as (from the handshake). */
 export function AccountChip({ handshake }: { handshake: HandshakeInfo | null }) {
   const account = handshake?.account as { email?: string } | null;
