@@ -2,16 +2,18 @@ import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open as openPicker } from "@tauri-apps/plugin-dialog";
 import { toast } from "sonner";
-import { Folder, Loader2, UserRound, X } from "lucide-react";
+import { Check, Folder, Loader2, Sparkles, UserRound, X } from "lucide-react";
+import { cn } from "@/lib/cn";
 import type { AppSettings } from "@/lib/generated/AppSettings";
 import type { AppInfo } from "@/lib/generated/AppInfo";
+import type { SkillPluginInfo } from "@/lib/generated/SkillPluginInfo";
 import {
   openSettingsDialog,
   saveSettings,
   settingsStore,
   useSettings,
 } from "@/stores/settings";
-import { openProfilesDialog } from "@/stores/profiles";
+import { defaultProfile, openProfilesDialog } from "@/stores/profiles";
 
 const MODELS = ["", "haiku", "sonnet", "opus[1m]", "default"];
 const MODES = ["", "default", "plan", "acceptEdits", "auto", "dontAsk", "bypassPermissions"];
@@ -164,6 +166,10 @@ export function SettingsDialog() {
             />
           </Section>
 
+          <Section title="Skills">
+            <SkillsSettings draft={draft} set={set} />
+          </Section>
+
           <Section title="Accounts">
             <button
               onClick={() => {
@@ -202,6 +208,123 @@ export function SettingsDialog() {
     </div>
   );
 }
+
+function SkillsSettings({
+  draft,
+  set,
+}: {
+  draft: AppSettings;
+  set: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
+}) {
+  const [info, setInfo] = useState<SkillPluginInfo[]>([]);
+  const [installing, setInstalling] = useState(false);
+  const configDir = defaultProfile()?.config_dir ?? null;
+
+  useEffect(() => {
+    void invoke<SkillPluginInfo[]>("skill_plugins_info", { configDir })
+      .then(setInfo)
+      .catch(() => {});
+  }, [configDir]);
+
+  const enabled = new Set(draft.skill_plugins);
+  const toggle = (id: string) => {
+    const next = new Set(enabled);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    set("skill_plugins", [...next]);
+  };
+
+  const installNow = async () => {
+    setInstalling(true);
+    try {
+      const updated = await invoke<SkillPluginInfo[]>("install_skill_plugins", {
+        configDir,
+      });
+      setInfo(updated);
+      toast.success("Skills installed for the default account.");
+    } catch (e) {
+      toast.error(String(e));
+    } finally {
+      setInstalling(false);
+    }
+  };
+
+  const infoFor = (id: string) => info.find((i) => i.id === id);
+
+  return (
+    <div>
+      <p className="mb-2 text-fg-muted">
+        Auto-install these skill plugins (from anthropics/skills) into every
+        account, so all sessions and repos get them.
+      </p>
+      <div className="flex flex-col gap-1.5">
+        {SKILL_PLUGINS.map((p) => {
+          const on = enabled.has(p.id);
+          const installed = infoFor(p.id)?.installed;
+          return (
+            <button
+              key={p.id}
+              onClick={() => toggle(p.id)}
+              className={cn(
+                "flex items-start gap-2.5 rounded-lg border px-2.5 py-2 text-left transition-colors",
+                on
+                  ? "border-accent bg-accent/10"
+                  : "border-border bg-surface hover:bg-hover",
+              )}
+            >
+              <span
+                className={cn(
+                  "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border",
+                  on ? "border-accent bg-accent text-white" : "border-border",
+                )}
+              >
+                {on && <Check size={11} />}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center gap-1.5 font-medium text-fg">
+                  {p.label}
+                  {installed && (
+                    <span className="rounded bg-success/15 px-1.5 py-0.5 text-[9px] font-medium text-success">
+                      installed
+                    </span>
+                  )}
+                </span>
+                <span className="mt-0.5 block font-mono text-[10px] text-fg-muted">
+                  {p.bundles}
+                </span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      <button
+        onClick={installNow}
+        disabled={installing || draft.skill_plugins.length === 0}
+        className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-fg-secondary hover:bg-hover hover:text-fg disabled:opacity-50"
+      >
+        {installing ? (
+          <Loader2 size={12} className="animate-spin" />
+        ) : (
+          <Sparkles size={12} />
+        )}
+        Install now for the default account
+      </button>
+    </div>
+  );
+}
+
+const SKILL_PLUGINS = [
+  {
+    id: "example-skills",
+    label: "Example skills",
+    bundles: "skill-creator · webapp-testing · mcp-builder · frontend-design",
+  },
+  {
+    id: "document-skills",
+    label: "Document skills",
+    bundles: "docx · pdf · pptx · xlsx",
+  },
+];
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (

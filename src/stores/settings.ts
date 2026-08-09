@@ -13,6 +13,7 @@ const EMPTY: AppSettings = {
   worktree_base: null,
   default_model: null,
   default_permission_mode: null,
+  skill_plugins: [],
 };
 
 export const settingsStore = createStore<SettingsState>(() => ({

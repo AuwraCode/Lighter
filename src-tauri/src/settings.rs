@@ -12,7 +12,7 @@ use crate::persistence::Store;
 
 const FILE: &str = "settings.json";
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct AppSettings {
     /// Full path to claude.exe; None = resolve from PATH.
@@ -22,6 +22,25 @@ pub struct AppSettings {
     /// Prefill for the new-session dialog.
     pub default_model: Option<String>,
     pub default_permission_mode: Option<String>,
+    /// Skill plugins to auto-provision into each account (see skills.rs).
+    #[serde(default = "default_skill_plugins")]
+    pub skill_plugins: Vec<String>,
+}
+
+fn default_skill_plugins() -> Vec<String> {
+    vec!["example-skills".into(), "document-skills".into()]
+}
+
+impl Default for AppSettings {
+    fn default() -> Self {
+        AppSettings {
+            claude_bin: None,
+            worktree_base: None,
+            default_model: None,
+            default_permission_mode: None,
+            skill_plugins: default_skill_plugins(),
+        }
+    }
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -47,6 +66,10 @@ impl Settings {
 
     pub fn get(&self) -> AppSettings {
         self.current.lock().unwrap().clone()
+    }
+
+    pub fn skill_plugins(&self) -> Vec<String> {
+        self.current.lock().unwrap().skill_plugins.clone()
     }
 
     pub fn save(&self, mut settings: AppSettings) -> Result<AppSettings> {
@@ -82,6 +105,8 @@ fn normalize(s: &mut AppSettings) {
             *field = None;
         }
     }
+    s.skill_plugins
+        .retain(|p| crate::skills::AVAILABLE.iter().any(|(id, _)| id == p));
 }
 
 fn apply_overrides(s: &AppSettings) {
@@ -113,6 +138,7 @@ mod tests {
                 worktree_base: Some("C:/tmp/wt".into()),
                 default_model: Some("haiku".into()),
                 default_permission_mode: Some("".into()),
+                ..Default::default()
             })
             .unwrap();
         assert!(saved.default_permission_mode.is_none());

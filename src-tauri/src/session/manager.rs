@@ -1,11 +1,11 @@
 //! Registry of live sessions. Holds only cheap command senders — all real
 //! state lives inside each session's router task.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex, OnceLock};
 
 use tauri::ipc::Channel;
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::{mpsc, oneshot, Mutex as AsyncMutex};
 use uuid::Uuid;
 
 use crate::error::{Error, Result};
@@ -37,6 +37,9 @@ pub struct SessionManager {
     /// simultaneous launches into one repo can't both skip isolation.
     worktree_lock: Mutex<()>,
     records: Arc<Records>,
+    /// Config dirs whose skill plugins were provisioned this app-run (keyed by
+    /// config dir, "" for the default). Guards against re-running per session.
+    skills_ensured: AsyncMutex<HashSet<String>>,
 }
 
 /// Test-only convenience: records land in a temp directory.
@@ -54,6 +57,33 @@ impl SessionManager {
             registry_tx: OnceLock::new(),
             worktree_lock: Mutex::new(()),
             records,
+            skills_ensured: AsyncMutex::new(HashSet::new()),
+        }
+    }
+
+    /// Ensure the given skill plugins are installed for this account, once per
+    /// config dir per app-run. Runs the (blocking) `claude plugin` commands off
+    /// the async runtime; failures are logged, never fatal to session launch.
+    pub async fn ensure_skills(&self, config_dir: Option<String>, plugins: Vec<String>) {
+        if plugins.is_empty() {
+            return;
+        }
+        let key = config_dir.clone().unwrap_or_default();
+        let mut ensured = self.skills_ensured.lock().await;
+        if ensured.contains(&key) {
+            return;
+        }
+        let dir = config_dir.clone();
+        let done = tauri::async_runtime::spawn_blocking(move || {
+            crate::skills::ensure(dir.as_deref(), &plugins)
+        })
+        .await;
+        match done {
+            Ok(Ok(())) => {
+                ensured.insert(key);
+            }
+            Ok(Err(e)) => tracing::warn!(%e, "skill provisioning failed"),
+            Err(e) => tracing::warn!(%e, "skill provisioning task panicked"),
         }
     }
 

@@ -8,6 +8,7 @@ pub mod protocol;
 pub mod records;
 pub mod session;
 pub mod settings;
+pub mod skills;
 pub mod worktree;
 
 use std::sync::Arc;
@@ -80,6 +81,8 @@ pub fn run() {
             commands::open_login_terminal,
             commands::get_settings,
             commands::save_settings,
+            commands::skill_plugins_info,
+            commands::install_skill_plugins,
         ])
         .on_window_event(|window, event| {
             // Closing the window gracefully stops every session first so CLIs

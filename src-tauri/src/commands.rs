@@ -27,9 +27,15 @@ use crate::session::router::SessionCommand;
 #[tauri::command]
 pub async fn create_session(
     manager: State<'_, SessionManager>,
+    settings: State<'_, Settings>,
     config: SessionConfig,
     channel: Channel<Batch>,
 ) -> Result<SessionInfo> {
+    // Auto-provision skill plugins for this account before launch so the very
+    // first session already sees them (idempotent, cached per config dir).
+    manager
+        .ensure_skills(config.claude_config_dir.clone(), settings.skill_plugins())
+        .await;
     manager.create(config, channel)
 }
 
@@ -188,6 +194,7 @@ pub fn delete_session_record(records: State<'_, Arc<Records>>, record_id: Uuid) 
 #[tauri::command]
 pub async fn resume_session(
     manager: State<'_, SessionManager>,
+    settings: State<'_, Settings>,
     records: State<'_, Arc<Records>>,
     record_id: Uuid,
     channel: Channel<Batch>,
@@ -201,6 +208,9 @@ pub async fn resume_session(
             record.cwd
         )));
     }
+    manager
+        .ensure_skills(record.claude_config_dir.clone(), settings.skill_plugins())
+        .await;
     let cfg = SessionConfig {
         cwd: record.cwd.clone(),
         title: Some(record.title.clone()),
@@ -286,6 +296,35 @@ pub fn save_settings(
     new_settings: AppSettings,
 ) -> Result<AppSettings> {
     settings.save(new_settings)
+}
+
+// ---------------------------------------------------------------------------
+// skill plugins
+
+/// Installed-state of the auto-provisionable skill plugins for an account.
+#[tauri::command]
+pub async fn skill_plugins_info(
+    config_dir: Option<String>,
+) -> Vec<crate::skills::SkillPluginInfo> {
+    tauri::async_runtime::spawn_blocking(move || crate::skills::info(config_dir.as_deref()))
+        .await
+        .unwrap_or_default()
+}
+
+/// Manually (re)provision the configured skill plugins for an account now.
+#[tauri::command]
+pub async fn install_skill_plugins(
+    settings: State<'_, Settings>,
+    config_dir: Option<String>,
+) -> Result<Vec<crate::skills::SkillPluginInfo>> {
+    let plugins = settings.skill_plugins();
+    let dir = config_dir.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let _ = crate::skills::ensure(dir.as_deref(), &plugins);
+        crate::skills::info(dir.as_deref())
+    })
+    .await
+    .map_err(|e| Error::Control(e.to_string()))
 }
 
 /// The CLI version the protocol fixtures were captured against.

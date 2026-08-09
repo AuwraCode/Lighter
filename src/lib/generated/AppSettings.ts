@@ -12,4 +12,8 @@ worktree_base: string | null,
 /**
  * Prefill for the new-session dialog.
  */
-default_model: string | null, default_permission_mode: string | null, };
+default_model: string | null, default_permission_mode: string | null, 
+/**
+ * Skill plugins to auto-provision into each account (see skills.rs).
+ */
+skill_plugins: Array<string>, };
