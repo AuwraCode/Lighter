@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { History, Loader2, Pencil, Play, Plus, Trash2, X, Zap } from "lucide-react";
 import { cn } from "@/lib/cn";
 import * as ipc from "@/lib/ipc";
@@ -277,7 +278,7 @@ function SessionTileInner({ summary }: { summary: SessionSummary }) {
               void ipc
                 .removeSession(summary.id, true)
                 .then((warning) => {
-                  if (warning) console.warn(warning);
+                  if (warning) toast.warning(warning);
                 })
                 .catch(() => {});
               dropSessionStore(summary.id);

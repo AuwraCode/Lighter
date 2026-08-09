@@ -1,10 +1,13 @@
-// Focused session view: transcript, composer, live controls, permissions.
-// Mounted with key={sessionId}; always (re)attaches on mount — the atomic
-// snapshot makes that lossless.
+// Focused session view: virtualized transcript, composer, live controls,
+// permissions. Mounted with key={sessionId}; always (re)attaches on mount —
+// the atomic snapshot makes that lossless.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useStore } from "zustand";
+import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
+import { toast } from "sonner";
 import {
+  ArrowDown,
   ArrowLeft,
   Check,
   CircleStop,
@@ -13,21 +16,20 @@ import {
   Loader2,
   Send,
   ShieldQuestion,
-  Squircle,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import * as ipc from "@/lib/ipc";
 import type { HandshakeInfo } from "@/lib/generated/HandshakeInfo";
 import type { PendingPermission } from "@/lib/generated/PendingPermission";
-import type { TranscriptItem } from "@/lib/generated/TranscriptItem";
 import {
   getOrCreateSessionStore,
   makeAttachBuffer,
   prependHistory,
 } from "@/stores/session";
-import { focusSession, registryStore } from "@/stores/registry";
+import { focusSession, registryStore, useRegistry } from "@/stores/registry";
 import { statusColor } from "@/lib/status";
+import { MemoItemView } from "./TranscriptItems";
 
 // The set_permission_mode control request accepts "default" (not "manual",
 // which is flag-only) — see PROTOCOL.md.
@@ -39,12 +41,12 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   const meta = useStore(store, (s) => s.meta);
   const stats = useStore(store, (s) => s.stats);
   const items = useStore(store, (s) => s.items);
+  const streaming = useStore(store, (s) => s.streaming);
   const pending = useStore(store, (s) => s.pending);
   const exited = useStore(store, (s) => s.exited);
   const handshake = useStore(store, (s) => s.handshake);
 
   const [attachError, setAttachError] = useState<string | null>(null);
-  const [controlError, setControlError] = useState<string | null>(null);
 
   useEffect(() => {
     const buffer = makeAttachBuffer(store);
@@ -55,21 +57,21 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
 
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const stickToBottom = useRef(true);
+  const virtuosoRef = useRef<VirtuosoHandle>(null);
+  const atBottomRef = useRef(true);
+  const [showJump, setShowJump] = useState(false);
 
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (el && stickToBottom.current) {
-      el.scrollTop = el.scrollHeight;
-    }
-  }, [items]);
-
-  const onScroll = useCallback(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    stickToBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+  const scrollToBottom = useCallback(() => {
+    virtuosoRef.current?.scrollToIndex({ index: "LAST", align: "end" });
   }, []);
+
+  // followOutput only reacts to count changes; streaming grows item heights,
+  // so nudge the scroller on every batch while pinned to the bottom.
+  useEffect(() => {
+    if (atBottomRef.current) {
+      requestAnimationFrame(scrollToBottom);
+    }
+  }, [items, scrollToBottom]);
 
   // Esc: deny+interrupt the newest pending approval, else plain interrupt.
   const pendingRef = useRef(pending);
@@ -77,7 +79,8 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
-      if (registryStore.getState().newSessionOpen) return;
+      const ui = registryStore.getState();
+      if (ui.newSessionOpen || ui.paletteOpen) return;
       const newest = pendingRef.current[pendingRef.current.length - 1];
       if (newest) {
         void ipc
@@ -98,16 +101,18 @@ export function SessionView({ sessionId }: { sessionId: string }) {
 
   const changeMode = useCallback(
     (mode: string) => {
-      setControlError(null);
-      void ipc.setPermissionMode(sessionId, mode).catch((e) => setControlError(String(e)));
+      void ipc
+        .setPermissionMode(sessionId, mode)
+        .catch((e) => toast.error(`Mode change failed: ${e}`));
     },
     [sessionId],
   );
 
   const changeModel = useCallback(
     (model: string) => {
-      setControlError(null);
-      void ipc.setModel(sessionId, model).catch((e) => setControlError(String(e)));
+      void ipc
+        .setModel(sessionId, model)
+        .catch((e) => toast.error(`Model change failed: ${e}`));
     },
     [sessionId],
   );
@@ -149,9 +154,9 @@ export function SessionView({ sessionId }: { sessionId: string }) {
           onChange={changeMode}
         />
 
-        {(controlError || attachError) && (
-          <span className="truncate text-danger" title={controlError ?? attachError ?? ""}>
-            {controlError ?? attachError}
+        {attachError && (
+          <span className="truncate text-danger" title={attachError}>
+            {attachError}
           </span>
         )}
         {stats && (
@@ -178,29 +183,57 @@ export function SessionView({ sessionId }: { sessionId: string }) {
         </button>
       </div>
 
-      <div
-        ref={scrollRef}
-        onScroll={onScroll}
-        className="min-h-0 flex-1 select-text overflow-y-auto px-4 py-3"
-      >
-        <div className="mx-auto flex max-w-3xl flex-col gap-3">
-          <LoadHistoryButton sessionId={sessionId} />
-          {items.map((item) => (
-            <ItemView key={item.id} item={item} />
-          ))}
-          {exited && (
-            <div className="rounded-lg border border-danger/40 bg-danger/10 p-3 text-xs">
-              <div className="font-medium text-danger">
-                Process exited (code {exited.code ?? "?"})
-              </div>
-              {exited.stderr_tail && (
-                <pre className="mt-2 overflow-x-auto whitespace-pre-wrap font-mono text-fg-secondary">
-                  {exited.stderr_tail}
-                </pre>
-              )}
+      <div className="relative min-h-0 flex-1 select-text">
+        <Virtuoso
+          ref={virtuosoRef}
+          style={{ height: "100%" }}
+          data={items}
+          computeItemKey={(_, item) => item.id}
+          increaseViewportBy={{ top: 600, bottom: 600 }}
+          initialTopMostItemIndex={Math.max(0, items.length - 1)}
+          followOutput={(isAtBottom) => (isAtBottom ? "auto" : false)}
+          atBottomThreshold={80}
+          atBottomStateChange={(isAtBottom) => {
+            atBottomRef.current = isAtBottom;
+            setShowJump(!isAtBottom);
+          }}
+          itemContent={(_, item) => (
+            <div className="mx-auto w-full max-w-3xl px-4 pb-3">
+              <MemoItemView item={item} streaming={streaming.has(item.id)} />
             </div>
           )}
-        </div>
+          components={{
+            Header: () => (
+              <div className="mx-auto w-full max-w-3xl px-4 py-3">
+                <LoadHistoryButton sessionId={sessionId} />
+              </div>
+            ),
+            Footer: () => (
+              <div className="mx-auto w-full max-w-3xl px-4 pb-3">
+                {exited && (
+                  <div className="rounded-lg border border-danger/40 bg-danger/10 p-3 text-xs">
+                    <div className="font-medium text-danger">
+                      Process exited (code {exited.code ?? "?"})
+                    </div>
+                    {exited.stderr_tail && (
+                      <pre className="mt-2 overflow-x-auto whitespace-pre-wrap font-mono text-fg-secondary">
+                        {exited.stderr_tail}
+                      </pre>
+                    )}
+                  </div>
+                )}
+              </div>
+            ),
+          }}
+        />
+        {showJump && (
+          <button
+            onClick={scrollToBottom}
+            className="absolute bottom-3 left-1/2 z-10 inline-flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-border bg-elevated px-3 py-1.5 text-[11px] text-fg-secondary shadow-lg hover:bg-hover hover:text-fg"
+          >
+            <ArrowDown size={11} /> Latest
+          </button>
+        )}
       </div>
 
       {pending.length > 0 && (
@@ -242,7 +275,7 @@ function LoadHistoryButton({ sessionId }: { sessionId: string }) {
     <button
       onClick={load}
       disabled={busy}
-      className="mx-auto inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-[11px] text-fg-muted hover:bg-hover hover:text-fg disabled:opacity-50"
+      className="mx-auto flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-[11px] text-fg-muted hover:bg-hover hover:text-fg disabled:opacity-50"
     >
       {busy ? (
         <Loader2 size={11} className="animate-spin" />
@@ -322,84 +355,6 @@ function ModelSwitcher({
       ))}
     </select>
   );
-}
-
-function ItemView({ item }: { item: TranscriptItem }) {
-  const nested =
-    "parent_tool_use_id" in item && item.parent_tool_use_id
-      ? "ml-6 border-l border-border-subtle pl-3"
-      : "";
-  switch (item.kind) {
-    case "UserText":
-      return (
-        <div
-          className={cn(
-            "rounded-lg border px-3 py-2 text-sm whitespace-pre-wrap",
-            item.injected
-              ? "border-warning/30 bg-warning/5 text-warning"
-              : "border-accent-muted/60 bg-accent/5",
-          )}
-        >
-          {item.text}
-        </div>
-      );
-    case "AssistantText":
-      return (
-        <div className={cn("whitespace-pre-wrap text-sm leading-relaxed", nested)}>
-          {item.text}
-        </div>
-      );
-    case "Thinking":
-      return (
-        <div
-          className={cn(
-            "whitespace-pre-wrap border-l-2 border-border pl-3 text-xs italic leading-relaxed text-fg-muted",
-            nested,
-          )}
-        >
-          {item.text}
-        </div>
-      );
-    case "ToolUse":
-      return (
-        <div
-          className={cn(
-            "overflow-hidden rounded-lg border border-border bg-surface font-mono text-xs",
-            nested,
-          )}
-        >
-          <div className="flex items-center gap-2 border-b border-border-subtle px-3 py-1.5">
-            <Squircle size={12} className="text-accent" />
-            <span className="font-medium">{item.name}</span>
-            {!item.output && (
-              <Loader2 size={12} className="ml-auto animate-spin text-fg-muted" />
-            )}
-          </div>
-          <pre className="max-h-40 overflow-auto px-3 py-2 text-fg-secondary">
-            {JSON.stringify(item.input, null, 2)}
-          </pre>
-          {item.output && (
-            <pre
-              className={cn(
-                "max-h-60 overflow-auto border-t border-border-subtle px-3 py-2",
-                item.output.is_error ? "text-danger" : "text-fg-secondary",
-              )}
-            >
-              {item.output.text || "(no output)"}
-              {item.output.truncated ? "\n… (truncated)" : ""}
-            </pre>
-          )}
-        </div>
-      );
-    case "CompactMarker":
-      return (
-        <div className="my-1 flex items-center gap-2 text-[11px] text-fg-muted">
-          <div className="h-px flex-1 bg-border" />
-          context compacted
-          <div className="h-px flex-1 bg-border" />
-        </div>
-      );
-  }
 }
 
 /** Human-oriented one-liner for a tool call's input. */
@@ -511,18 +466,30 @@ function PermissionCard({
 
 function Composer({ sessionId, disabled }: { sessionId: string; disabled: boolean }) {
   const [text, setText] = useState("");
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Palette "insert slash command" payloads.
+  const insert = useRegistry((s) => s.composerInsert);
+  useEffect(() => {
+    if (insert && insert.sessionId === sessionId) {
+      setText(insert.text);
+      registryStore.setState({ composerInsert: null });
+      requestAnimationFrame(() => textareaRef.current?.focus());
+    }
+  }, [insert, sessionId]);
 
   const send = useCallback(() => {
     const trimmed = text.trim();
     if (!trimmed) return;
     setText("");
-    void ipc.sendUserMessage(sessionId, trimmed).catch(() => {});
+    void ipc.sendUserMessage(sessionId, trimmed).catch((e) => toast.error(String(e)));
   }, [sessionId, text]);
 
   return (
     <div className="border-t border-border-subtle p-3">
       <div className="mx-auto flex max-w-3xl items-end gap-2">
         <textarea
+          ref={textareaRef}
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
@@ -533,7 +500,7 @@ function Composer({ sessionId, disabled }: { sessionId: string; disabled: boolea
           }}
           disabled={disabled}
           rows={2}
-          placeholder="Message Claude… (Ctrl+Enter to send, Esc to interrupt)"
+          placeholder="Message Claude… (Ctrl+Enter to send, Esc to interrupt, Ctrl+K commands)"
           className="min-h-[3rem] flex-1 resize-none rounded-lg border border-border bg-elevated px-3 py-2 text-sm placeholder:text-fg-muted focus:border-accent focus:outline-none disabled:opacity-50"
         />
         <button

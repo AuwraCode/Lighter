@@ -14,6 +14,9 @@ export interface RegistryState {
   sessions: Record<string, SessionSummary>;
   focusedId: string | null;
   newSessionOpen: boolean;
+  paletteOpen: boolean;
+  /** One-shot payload the focused composer picks up (slash command insert). */
+  composerInsert: { sessionId: string; text: string; nonce: number } | null;
 }
 
 export const registryStore = createStore<RegistryState>(() => ({
@@ -22,6 +25,8 @@ export const registryStore = createStore<RegistryState>(() => ({
   sessions: {},
   focusedId: null,
   newSessionOpen: false,
+  paletteOpen: false,
+  composerInsert: null,
 }));
 
 export function useRegistry<T>(selector: (s: RegistryState) => T): T {
@@ -62,4 +67,14 @@ export function focusSession(id: string | null) {
 
 export function openNewSession(open: boolean) {
   registryStore.setState({ newSessionOpen: open });
+}
+
+export function openPalette(open: boolean) {
+  registryStore.setState({ paletteOpen: open });
+}
+
+export function insertIntoComposer(sessionId: string, text: string) {
+  registryStore.setState({
+    composerInsert: { sessionId, text, nonce: Date.now() },
+  });
 }

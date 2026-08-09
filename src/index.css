@@ -27,8 +27,8 @@
   --color-info: #58a6ff;
 
   /* Typography */
-  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
-    sans-serif;
+  --font-sans: "Inter Variable", "Inter", ui-sans-serif, system-ui,
+    -apple-system, "Segoe UI", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Code", Consolas,
     monospace;
 }
@@ -67,5 +67,83 @@
   }
   *::-webkit-scrollbar-track {
     background: transparent;
+  }
+}
+
+/* cmdk group headings */
+.palette-group [cmdk-group-heading] {
+  padding: 6px 10px 2px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-fg-muted);
+}
+
+/* ---------------------------------------------------------------------------
+   Markdown (completed assistant messages) */
+@layer components {
+  .md {
+    @apply text-sm leading-relaxed;
+  }
+  .md > * + * {
+    margin-top: 0.6em;
+  }
+  .md h1,
+  .md h2,
+  .md h3,
+  .md h4 {
+    @apply font-semibold tracking-tight text-fg;
+    margin-top: 1em;
+  }
+  .md h1 {
+    @apply text-lg;
+  }
+  .md h2 {
+    @apply text-base;
+  }
+  .md h3,
+  .md h4 {
+    @apply text-sm;
+  }
+  .md ul {
+    @apply list-disc pl-5;
+  }
+  .md ol {
+    @apply list-decimal pl-5;
+  }
+  .md li + li {
+    margin-top: 0.2em;
+  }
+  .md code {
+    @apply rounded bg-elevated px-1 py-0.5 font-mono text-[0.85em] text-fg;
+  }
+  .md pre {
+    @apply overflow-x-auto rounded-lg border border-border bg-surface p-3 font-mono text-xs leading-relaxed;
+  }
+  .md pre code {
+    @apply bg-transparent p-0;
+  }
+  .md a {
+    @apply text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent;
+  }
+  .md blockquote {
+    @apply border-l-2 border-border pl-3 text-fg-secondary;
+  }
+  .md table {
+    @apply w-full border-collapse text-xs;
+  }
+  .md th,
+  .md td {
+    @apply border border-border px-2 py-1 text-left;
+  }
+  .md th {
+    @apply bg-elevated font-medium;
+  }
+  .md hr {
+    @apply border-border;
+  }
+  .md p {
+    @apply whitespace-pre-wrap;
   }
 }
