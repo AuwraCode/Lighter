@@ -10,7 +10,7 @@ use std::time::{Duration, Instant};
 use serde_json::Value;
 use tauri::ipc::{Channel, InvokeResponseBody};
 
-use lighter_lib::session::events::{SessionConfig, SessionStatus};
+use lighter_lib::session::events::{PermissionDecisionDto, SessionConfig, SessionStatus};
 use lighter_lib::session::manager::SessionManager;
 use lighter_lib::session::router::SessionCommand;
 
@@ -56,6 +56,129 @@ fn config(cwd: &str) -> SessionConfig {
         model: Some("haiku".into()),
         ..Default::default()
     }
+}
+
+#[test]
+#[ignore = "requires logged-in claude CLI and spends API credits"]
+fn permission_flow_allow_and_deny() {
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let _guard = rt.enter();
+
+    let tmp = std::env::temp_dir().join("lighter-e2e-perm");
+    let _ = std::fs::remove_dir_all(&tmp);
+    std::fs::create_dir_all(&tmp).unwrap();
+
+    let manager = SessionManager::default();
+    let log: EventLog = Arc::new(Mutex::new(Vec::new()));
+    let channel = capture_channel(log.clone());
+    let mut cfg = config(tmp.to_str().unwrap());
+    cfg.permission_mode = Some("manual".into()); // everything prompts
+
+    let info = manager.create(cfg, channel).expect("create session");
+
+    let respond = |request_id: String, allow: bool| {
+        let (reply, rx) = tokio::sync::oneshot::channel();
+        manager
+            .command(
+                info.id,
+                SessionCommand::RespondPermission {
+                    request_id,
+                    decision: PermissionDecisionDto {
+                        allow,
+                        use_suggestions: false,
+                        message: (!allow).then(|| "Not allowed in this test".to_string()),
+                        interrupt: false,
+                    },
+                    reply,
+                },
+            )
+            .unwrap();
+        rt.block_on(async {
+            tokio::time::timeout(Duration::from_secs(10), rx)
+                .await
+                .expect("respond timeout")
+                .expect("respond dropped")
+                .expect("respond failed");
+        });
+    };
+
+    let find_request = |from: usize| -> Option<String> {
+        let events = log.lock().unwrap();
+        events[from..]
+            .iter()
+            .find(|e| e["type"] == "PermissionRequested")
+            .and_then(|e| e["request"]["request_id"].as_str().map(String::from))
+    };
+
+    // Turn 1: allow → file is written.
+    manager
+        .command(
+            info.id,
+            SessionCommand::SendUser {
+                text: "Use the Write tool to create a file named allowed.txt containing exactly: ok-allow".into(),
+            },
+        )
+        .unwrap();
+    assert!(
+        wait_for(&log, |e| has_event(e, "PermissionRequested").next().is_some(), Duration::from_secs(90)),
+        "no permission prompt for Write"
+    );
+    respond(find_request(0).unwrap(), true);
+    assert!(
+        wait_for(&log, |e| has_event(e, "TurnCompleted").next().is_some(), Duration::from_secs(90)),
+        "allow turn did not complete"
+    );
+    let written = std::fs::read_to_string(tmp.join("allowed.txt")).expect("allowed.txt missing");
+    assert!(written.contains("ok-allow"));
+    {
+        let events = log.lock().unwrap();
+        assert!(events
+            .iter()
+            .any(|e| e["type"] == "PermissionResolved" && e["outcome"] == "Allowed"));
+    }
+    println!("allow flow ok");
+
+    // Turn 2: deny → file must not exist, tool result is an error.
+    let mark = log.lock().unwrap().len();
+    manager
+        .command(
+            info.id,
+            SessionCommand::SendUser {
+                text: "Use the Write tool to create a file named denied.txt containing exactly: nope".into(),
+            },
+        )
+        .unwrap();
+    assert!(
+        wait_for(&log, |e| e[mark..].iter().any(|ev| ev["type"] == "PermissionRequested"), Duration::from_secs(90)),
+        "no permission prompt for second Write"
+    );
+    respond(find_request(mark).unwrap(), false);
+    assert!(
+        wait_for(&log, |e| e[mark..].iter().any(|ev| ev["type"] == "TurnCompleted"), Duration::from_secs(90)),
+        "deny turn did not complete"
+    );
+    assert!(!tmp.join("denied.txt").exists(), "denied.txt must not be written");
+    {
+        let events = log.lock().unwrap();
+        assert!(events[mark..]
+            .iter()
+            .any(|e| e["type"] == "PermissionResolved" && e["outcome"] == "Denied"));
+        let denied_tool_errored = events[mark..].iter().any(|e| {
+            (e["type"] == "ItemUpdated" || e["type"] == "ItemCompleted")
+                && e["item"]["kind"] == "ToolUse"
+                && e["item"]["output"]["is_error"] == true
+        });
+        assert!(denied_tool_errored, "denied tool_use should carry an error result");
+    }
+    println!("deny flow ok");
+
+    manager
+        .command(info.id, SessionCommand::Stop { graceful: true })
+        .unwrap();
+    assert!(
+        wait_for(&log, |e| has_event(e, "Exited").next().is_some(), Duration::from_secs(25)),
+        "no Exited event"
+    );
 }
 
 #[test]

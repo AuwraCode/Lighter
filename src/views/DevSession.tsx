@@ -1,19 +1,23 @@
-// Phase-2 development screen: drive ONE session end-to-end.
+// Phase-2..4 development screen: drive ONE session end-to-end.
 // The real dashboard/session views replace this in later phases.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useStore } from "zustand";
 import { open as openFolder } from "@tauri-apps/plugin-dialog";
 import {
+  Check,
   CircleStop,
   Folder,
   Loader2,
   Play,
   Send,
+  ShieldQuestion,
   Squircle,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import * as ipc from "@/lib/ipc";
+import type { HandshakeInfo } from "@/lib/generated/HandshakeInfo";
 import type { PendingPermission } from "@/lib/generated/PendingPermission";
 import type { SessionStatus } from "@/lib/generated/SessionStatus";
 import type { TranscriptItem } from "@/lib/generated/TranscriptItem";
@@ -25,6 +29,8 @@ import {
 } from "@/stores/session";
 
 const MODELS = ["haiku", "sonnet", "opus[1m]", "default"];
+// The set_permission_mode control request accepts "default" (not "manual",
+// which is flag-only) — see PROTOCOL.md.
 const MODES = ["default", "plan", "acceptEdits", "auto", "dontAsk", "bypassPermissions"];
 
 function statusColor(status: SessionStatus): string {
@@ -183,7 +189,9 @@ function SessionPane({ sessionId }: { sessionId: string }) {
   const items = useStore(store, (s) => s.items);
   const pending = useStore(store, (s) => s.pending);
   const exited = useStore(store, (s) => s.exited);
+  const handshake = useStore(store, (s) => s.handshake);
 
+  const [controlError, setControlError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const stickToBottom = useRef(true);
 
@@ -200,9 +208,23 @@ function SessionPane({ sessionId }: { sessionId: string }) {
     stickToBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
   }, []);
 
+  // Esc: deny+interrupt the newest pending approval, else plain interrupt.
+  const pendingRef = useRef(pending);
+  pendingRef.current = pending;
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+      if (e.key !== "Escape") return;
+      const newest = pendingRef.current[pendingRef.current.length - 1];
+      if (newest) {
+        void ipc
+          .respondPermission(sessionId, newest.request_id, {
+            allow: false,
+            use_suggestions: false,
+            message: "Interrupted by user",
+            interrupt: true,
+          })
+          .catch(() => {});
+      } else {
         void ipc.interruptSession(sessionId).catch(() => {});
       }
     };
@@ -210,25 +232,63 @@ function SessionPane({ sessionId }: { sessionId: string }) {
     return () => window.removeEventListener("keydown", handler);
   }, [sessionId]);
 
+  const changeMode = useCallback(
+    (mode: string) => {
+      setControlError(null);
+      void ipc.setPermissionMode(sessionId, mode).catch((e) => setControlError(String(e)));
+    },
+    [sessionId],
+  );
+
+  const changeModel = useCallback(
+    (model: string) => {
+      setControlError(null);
+      void ipc.setModel(sessionId, model).catch((e) => setControlError(String(e)));
+    },
+    [sessionId],
+  );
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex items-center gap-3 border-b border-border-subtle px-4 py-1.5 text-xs text-fg-secondary">
-        <span className={cn("h-2 w-2 rounded-full", statusColor(status))} />
-        <span>{status}</span>
-        {meta && (
-          <>
-            <span className="text-fg-muted">{meta.model}</span>
-            <span className="text-fg-muted">{meta.permission_mode}</span>
-          </>
+      <div className="flex items-center gap-2 border-b border-border-subtle px-4 py-1.5 text-xs text-fg-secondary">
+        <span className={cn("h-2 w-2 shrink-0 rounded-full", statusColor(status))} />
+        <span className="w-28 shrink-0">{status}</span>
+
+        <ModelSwitcher
+          current={meta?.model ?? ""}
+          handshake={handshake}
+          disabled={!!exited}
+          onChange={changeModel}
+        />
+        <ModeSwitcher
+          current={meta?.permission_mode ?? "default"}
+          disabled={!!exited}
+          onChange={changeMode}
+        />
+
+        {controlError && (
+          <span className="truncate text-danger" title={controlError}>
+            {controlError}
+          </span>
         )}
         {stats && (
-          <span className="ml-auto font-mono text-fg-muted">
+          <span className="ml-auto shrink-0 font-mono text-fg-muted">
             ${stats.total_cost_usd.toFixed(4)} · {stats.turns} turns
+            {stats.context_used_tokens != null && stats.context_window != null && (
+              <>
+                {" "}
+                · ctx{" "}
+                {Math.round(
+                  (Number(stats.context_used_tokens) / Number(stats.context_window)) * 100,
+                )}
+                %
+              </>
+            )}
           </span>
         )}
         <button
           onClick={() => void ipc.stopSession(sessionId)}
-          className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-fg-muted hover:bg-hover hover:text-danger"
+          className="inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-fg-muted hover:bg-hover hover:text-danger"
           title="Stop session"
         >
           <CircleStop size={13} />
@@ -260,15 +320,85 @@ function SessionPane({ sessionId }: { sessionId: string }) {
       </div>
 
       {pending.length > 0 && (
-        <div className="border-t border-border-subtle px-4 py-2">
+        <div className="flex flex-col gap-2 border-t border-border-subtle px-4 py-2">
           {pending.map((p) => (
-            <PermissionBar key={p.request_id} sessionId={sessionId} pending={p} />
+            <PermissionCard key={p.request_id} sessionId={sessionId} pending={p} />
           ))}
         </div>
       )}
 
       <Composer sessionId={sessionId} disabled={!!exited} />
     </div>
+  );
+}
+
+function ModeSwitcher({
+  current,
+  disabled,
+  onChange,
+}: {
+  current: string;
+  disabled: boolean;
+  onChange: (mode: string) => void;
+}) {
+  const options = MODES.includes(current) ? MODES : [current, ...MODES];
+  return (
+    <select
+      value={current}
+      disabled={disabled}
+      onChange={(e) => onChange(e.target.value)}
+      title="Permission mode (live)"
+      className="shrink-0 rounded border border-border bg-elevated px-1.5 py-0.5 text-xs disabled:opacity-50"
+    >
+      {options.map((m) => (
+        <option key={m} value={m}>
+          {m}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+interface ModelOption {
+  value: string;
+  displayName: string;
+  resolvedModel?: string;
+}
+
+function ModelSwitcher({
+  current,
+  handshake,
+  disabled,
+  onChange,
+}: {
+  current: string;
+  handshake: HandshakeInfo | null;
+  disabled: boolean;
+  onChange: (model: string) => void;
+}) {
+  const models: ModelOption[] = Array.isArray(handshake?.models)
+    ? (handshake!.models as unknown as ModelOption[])
+    : [];
+  // meta.model is the RESOLVED id (claude-haiku-4-5-…); options use aliases.
+  const selected =
+    models.find((m) => m.resolvedModel === current || m.value === current)?.value ??
+    current;
+  const hasSelected = models.some((m) => m.value === selected);
+  return (
+    <select
+      value={selected}
+      disabled={disabled || models.length === 0}
+      onChange={(e) => onChange(e.target.value)}
+      title="Model (live)"
+      className="max-w-40 shrink-0 truncate rounded border border-border bg-elevated px-1.5 py-0.5 text-xs disabled:opacity-50"
+    >
+      {!hasSelected && <option value={selected}>{selected || "model"}</option>}
+      {models.map((m) => (
+        <option key={m.value} value={m.value}>
+          {m.displayName}
+        </option>
+      ))}
+    </select>
   );
 }
 
@@ -336,55 +466,105 @@ function ItemView({ item }: { item: TranscriptItem }) {
   }
 }
 
-function PermissionBar({
+/** Human-oriented one-liner for a tool call's input. */
+function describeInput(pending: PendingPermission): string {
+  if (pending.description) return pending.description;
+  const input = pending.input as Record<string, unknown> | null;
+  if (input && typeof input === "object") {
+    if (typeof input.command === "string") return input.command;
+    if (typeof input.file_path === "string") return input.file_path;
+  }
+  return JSON.stringify(pending.input).slice(0, 160);
+}
+
+function PermissionCard({
   sessionId,
   pending,
 }: {
   sessionId: string;
   pending: PendingPermission;
 }) {
-  const respond = (allow: boolean, useSuggestions = false) =>
+  const [denying, setDenying] = useState(false);
+  const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const respond = (allow: boolean, useSuggestions = false, denyMessage?: string) => {
+    setBusy(true);
     void ipc
       .respondPermission(sessionId, pending.request_id, {
         allow,
         use_suggestions: useSuggestions,
-        message: allow ? null : "Denied by user",
+        message: allow ? null : denyMessage || "Denied by user",
         interrupt: false,
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setBusy(false));
+  };
 
   const hasSuggestions =
     Array.isArray(pending.suggestions) && pending.suggestions.length > 0;
 
   return (
-    <div className="flex items-center gap-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs">
-      <span className="font-medium text-warning">
-        {pending.display_name ?? pending.tool_name}
-      </span>
-      <span className="truncate text-fg-secondary">
-        {pending.description ?? JSON.stringify(pending.input).slice(0, 120)}
-      </span>
-      <div className="ml-auto flex shrink-0 gap-1.5">
-        <button
-          onClick={() => respond(true)}
-          className="rounded bg-success/20 px-2 py-1 font-medium text-success hover:bg-success/30"
-        >
-          Allow
-        </button>
-        {hasSuggestions && (
-          <button
-            onClick={() => respond(true, true)}
-            className="rounded bg-success/10 px-2 py-1 text-success hover:bg-success/20"
-          >
-            Always
-          </button>
-        )}
-        <button
-          onClick={() => respond(false)}
-          className="rounded bg-danger/20 px-2 py-1 font-medium text-danger hover:bg-danger/30"
-        >
-          Deny
-        </button>
+    <div className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs">
+      <div className="flex items-center gap-2">
+        <ShieldQuestion size={14} className="shrink-0 text-warning" />
+        <span className="font-medium text-warning">
+          {pending.display_name ?? pending.tool_name}
+        </span>
+        <span className="truncate font-mono text-fg-secondary" title={describeInput(pending)}>
+          {describeInput(pending)}
+        </span>
+        <div className="ml-auto flex shrink-0 gap-1.5">
+          {!denying ? (
+            <>
+              <button
+                disabled={busy}
+                onClick={() => respond(true)}
+                className="inline-flex items-center gap-1 rounded bg-success/20 px-2 py-1 font-medium text-success hover:bg-success/30 disabled:opacity-50"
+              >
+                <Check size={12} /> Allow
+              </button>
+              {hasSuggestions && (
+                <button
+                  disabled={busy}
+                  onClick={() => respond(true, true)}
+                  title="Also apply the CLI's suggested permission rule for this session"
+                  className="rounded bg-success/10 px-2 py-1 text-success hover:bg-success/20 disabled:opacity-50"
+                >
+                  Always
+                </button>
+              )}
+              <button
+                disabled={busy}
+                onClick={() => setDenying(true)}
+                className="inline-flex items-center gap-1 rounded bg-danger/20 px-2 py-1 font-medium text-danger hover:bg-danger/30 disabled:opacity-50"
+              >
+                <X size={12} /> Deny
+              </button>
+            </>
+          ) : (
+            <>
+              <input
+                autoFocus
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") respond(false, false, message);
+                  if (e.key === "Escape") setDenying(false);
+                }}
+                placeholder="Reason (optional) — Enter to deny"
+                className="w-64 rounded border border-border bg-elevated px-2 py-1 text-xs focus:border-danger focus:outline-none"
+              />
+              <button
+                disabled={busy}
+                onClick={() => respond(false, false, message)}
+                className="rounded bg-danger/20 px-2 py-1 font-medium text-danger hover:bg-danger/30"
+              >
+                Deny
+              </button>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
