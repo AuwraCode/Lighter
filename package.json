@@ -4,13 +4,16 @@
   "version": "0.1.0",
   "type": "module",
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild"]
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
   },
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
+    "test": "vitest run",
     "typegen": "cd src-tauri && set TS_RS_EXPORT_DIR=../src/lib/generated&& cargo test export_bindings"
   },
   "dependencies": {
@@ -32,6 +35,7 @@
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.6.0",
     "typescript": "~5.8.3",
-    "vite": "^7.0.4"
+    "vite": "^7.0.4",
+    "vitest": "^4.1.10"
   }
 }

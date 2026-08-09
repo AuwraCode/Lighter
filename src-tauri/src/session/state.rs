@@ -509,6 +509,14 @@ impl SessionState {
         self.stats.total_cost_usd = base;
     }
 
+    /// Items whose text is still streaming (focus-time catch-up sync).
+    pub fn streaming_items(&self) -> Vec<TranscriptItem> {
+        self.streaming
+            .keys()
+            .filter_map(|id| self.item_index.get(id).map(|ix| self.items[*ix].clone()))
+            .collect()
+    }
+
     pub fn resolve_permission(
         &mut self,
         request_id: &str,

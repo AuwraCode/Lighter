@@ -155,6 +155,61 @@ fn single_session_roundtrip_interrupt_and_stop() {
     );
     println!("interrupt ok");
 
+    // Turn 3: focus gating. Unfocused sessions must receive no ItemDelta;
+    // refocusing syncs in-flight text via ItemUpdated.
+    let before = log.lock().unwrap().len();
+    manager
+        .command(
+            info.id,
+            SessionCommand::SendUser {
+                text: "Count from 1 to 300, one number per line, no other text.".into(),
+            },
+        )
+        .unwrap();
+    assert!(
+        wait_for(
+            &log,
+            |e| e[before..].iter().any(|ev| ev["type"] == "ItemDelta"),
+            Duration::from_secs(60)
+        ),
+        "no deltas for focus-gating turn"
+    );
+    manager
+        .command(info.id, SessionCommand::SetFocus(false))
+        .unwrap();
+    std::thread::sleep(Duration::from_millis(500)); // drain in-flight flushes
+    let mark = log.lock().unwrap().len();
+    std::thread::sleep(Duration::from_secs(3));
+    {
+        let events = log.lock().unwrap();
+        let deltas_while_unfocused = events[mark..]
+            .iter()
+            .filter(|e| e["type"] == "ItemDelta")
+            .count();
+        assert_eq!(
+            deltas_while_unfocused, 0,
+            "unfocused session must not receive deltas"
+        );
+    }
+    manager
+        .command(info.id, SessionCommand::SetFocus(true))
+        .unwrap();
+    assert!(
+        wait_for(
+            &log,
+            |e| e[mark..].iter().any(|ev| ev["type"] == "ItemUpdated"
+                || ev["type"] == "TurnCompleted"),
+            Duration::from_secs(10)
+        ),
+        "refocus did not sync in-flight items"
+    );
+    println!("focus gating ok");
+    let (reply, rx) = tokio::sync::oneshot::channel();
+    manager
+        .command(info.id, SessionCommand::Interrupt { reply })
+        .unwrap();
+    let _ = rt.block_on(async { tokio::time::timeout(Duration::from_secs(15), rx).await });
+
     // Graceful stop: CLI exits on stdin close, Exited event arrives.
     manager
         .command(info.id, SessionCommand::Stop { graceful: true })

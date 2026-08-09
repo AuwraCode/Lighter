@@ -120,3 +120,8 @@ pub fn remove_session(manager: State<'_, SessionManager>, session_id: Uuid) -> R
 pub fn list_sessions(manager: State<'_, SessionManager>) -> Vec<SessionInfo> {
     manager.list()
 }
+
+#[tauri::command]
+pub fn set_focus(manager: State<'_, SessionManager>, session_id: Option<Uuid>) {
+    manager.set_focus(session_id)
+}

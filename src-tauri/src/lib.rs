@@ -40,6 +40,7 @@ pub fn run() {
             commands::stop_session,
             commands::remove_session,
             commands::list_sessions,
+            commands::set_focus,
         ])
         .on_window_event(|window, event| {
             // Closing the window gracefully stops every session first so CLIs

@@ -1,0 +1,254 @@
+[
+  {
+    "event": {
+      "meta": {
+        "claude_version": "2.1.226",
+        "cwd": "C:\\Users\\USER\\AppData\\Local\\Temp\\lighter-probe\\handshake",
+        "model": "claude-haiku-4-5-20251001",
+        "permission_mode": "default",
+        "session_id": "161f7777-de91-4461-a49d-f8c2d3dceeef",
+        "slash_commands": [
+          "deep-research",
+          "design-sync",
+          "dataviz",
+          "update-config",
+          "verify",
+          "debug",
+          "code-review",
+          "simplify",
+          "batch",
+          "fewer-permission-prompts",
+          "doctor",
+          "loop",
+          "schedule",
+          "claude-api",
+          "run",
+          "run-skill-generator",
+          "agents",
+          "autocompact",
+          "clear",
+          "color",
+          "compact",
+          "config",
+          "context",
+          "effort",
+          "fast",
+          "heapdump",
+          "init",
+          "mcp",
+          "import",
+          "model",
+          "__remote-workflow",
+          "workflow-launch-exec",
+          "reload-skills",
+          "rename",
+          "ultrareview",
+          "security-review",
+          "usage-credits",
+          "extra-usage",
+          "usage",
+          "insights",
+          "recap",
+          "goal",
+          "design",
+          "design-consent",
+          "design-revoke",
+          "team-onboarding"
+        ],
+        "title": "test",
+        "tools": [
+          "Task",
+          "AskUserQuestion",
+          "Bash",
+          "CronCreate",
+          "CronDelete",
+          "CronList",
+          "DesignSync",
+          "Edit",
+          "EnterPlanMode",
+          "EnterWorktree",
+          "ExitPlanMode",
+          "ExitWorktree",
+          "Glob",
+          "Grep",
+          "Monitor",
+          "NotebookEdit",
+          "PowerShell",
+          "PushNotification",
+          "Read",
+          "RemoteTrigger",
+          "ReportFindings",
+          "ScheduleWakeup",
+          "SendMessage",
+          "Skill",
+          "TaskCreate",
+          "TaskGet",
+          "TaskList",
+          "TaskOutput",
+          "TaskStop",
+          "TaskUpdate",
+          "ToolSearch",
+          "WebFetch",
+          "WebSearch",
+          "Workflow",
+          "Write"
+        ]
+      },
+      "type": "Ready"
+    },
+    "seq": 1
+  },
+  {
+    "event": {
+      "status": "Working",
+      "type": "Status"
+    },
+    "seq": 2
+  },
+  {
+    "event": {
+      "info": {
+        "isUsingOverage": false,
+        "overageDisabledReason": "org_level_disabled",
+        "overageStatus": "rejected",
+        "rateLimitType": "five_hour",
+        "resetsAt": 1786316400,
+        "status": "allowed"
+      },
+      "type": "RateLimit"
+    },
+    "seq": 3
+  },
+  {
+    "event": {
+      "item": {
+        "id": "809255e8-4784-4511-aeee-0bd3432b3dea:0",
+        "injected": false,
+        "kind": "UserText",
+        "text": "Say exactly: HI"
+      },
+      "type": "ItemCompleted"
+    },
+    "seq": 4
+  },
+  {
+    "event": {
+      "item": {
+        "id": "msg_011CdsenPmQGrs581LW47ETf:0",
+        "kind": "Thinking",
+        "parent_tool_use_id": null,
+        "text": ""
+      },
+      "type": "ItemStarted"
+    },
+    "seq": 5
+  },
+  {
+    "event": {
+      "delta": "The user is asking",
+      "item_id": "msg_011CdsenPmQGrs581LW47ETf:0",
+      "kind": "Thinking",
+      "type": "ItemDelta"
+    },
+    "seq": 6
+  },
+  {
+    "event": {
+      "delta": " me to say exactly \"HI\". This is a straightforward request. I should respond with just \"HI\" as requested.",
+      "item_id": "msg_011CdsenPmQGrs581LW47ETf:0",
+      "kind": "Thinking",
+      "type": "ItemDelta"
+    },
+    "seq": 7
+  },
+  {
+    "event": {
+      "item": {
+        "id": "msg_011CdsenPmQGrs581LW47ETf:0",
+        "kind": "Thinking",
+        "parent_tool_use_id": null,
+        "text": "The user is asking me to say exactly \"HI\". This is a straightforward request. I should respond with just \"HI\" as requested."
+      },
+      "type": "ItemCompleted"
+    },
+    "seq": 8
+  },
+  {
+    "event": {
+      "item": {
+        "id": "msg_011CdsenPmQGrs581LW47ETf:1",
+        "kind": "AssistantText",
+        "parent_tool_use_id": null,
+        "text": ""
+      },
+      "type": "ItemStarted"
+    },
+    "seq": 9
+  },
+  {
+    "event": {
+      "delta": "HI",
+      "item_id": "msg_011CdsenPmQGrs581LW47ETf:1",
+      "kind": "Text",
+      "type": "ItemDelta"
+    },
+    "seq": 10
+  },
+  {
+    "event": {
+      "item": {
+        "id": "msg_011CdsenPmQGrs581LW47ETf:1",
+        "kind": "AssistantText",
+        "parent_tool_use_id": null,
+        "text": "HI"
+      },
+      "type": "ItemCompleted"
+    },
+    "seq": 11
+  },
+  {
+    "event": {
+      "stats": {
+        "context_used_tokens": 20548,
+        "context_window": null,
+        "total_cost_usd": 0.0,
+        "turns": 0
+      },
+      "type": "StatsUpdated"
+    },
+    "seq": 12
+  },
+  {
+    "event": {
+      "stats": {
+        "duration_ms": 1349,
+        "is_error": false,
+        "result_text": "HI",
+        "terminal_reason": "completed",
+        "total_cost_usd": 0.0103863,
+        "turn_cost_usd": 0.0103863
+      },
+      "type": "TurnCompleted"
+    },
+    "seq": 13
+  },
+  {
+    "event": {
+      "stats": {
+        "context_used_tokens": 20548,
+        "context_window": 200000,
+        "total_cost_usd": 0.0103863,
+        "turns": 1
+      },
+      "type": "StatsUpdated"
+    },
+    "seq": 14
+  },
+  {
+    "event": {
+      "status": "Idle",
+      "type": "Status"
+    },
+    "seq": 15
+  }
+]

@@ -66,6 +66,7 @@ export function DevSession() {
         .then((snapshot) => {
           buffer.flush(snapshot);
           setSessionId(first.id);
+          void ipc.setFocus(first.id);
         })
         .catch((e) => setError(String(e)));
     });
@@ -96,6 +97,7 @@ export function DevSession() {
       store = getOrCreateSessionStore(info.id);
       for (const b of pendingBatches) applyBatch(store, b);
       setSessionId(info.id);
+      void ipc.setFocus(info.id);
     } catch (e) {
       setError(String(e));
     } finally {

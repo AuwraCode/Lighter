@@ -1,0 +1,326 @@
+[
+  {
+    "event": {
+      "meta": {
+        "claude_version": "2.1.226",
+        "cwd": "C:\\Users\\USER\\AppData\\Local\\Temp\\lighter-probe\\interrupt",
+        "model": "claude-haiku-4-5-20251001",
+        "permission_mode": "default",
+        "session_id": "d05d8e5b-8c43-4b8a-852c-504e36c000e3",
+        "slash_commands": [
+          "deep-research",
+          "design-sync",
+          "dataviz",
+          "update-config",
+          "verify",
+          "debug",
+          "code-review",
+          "simplify",
+          "batch",
+          "fewer-permission-prompts",
+          "doctor",
+          "loop",
+          "schedule",
+          "claude-api",
+          "run",
+          "run-skill-generator",
+          "agents",
+          "autocompact",
+          "clear",
+          "color",
+          "compact",
+          "config",
+          "context",
+          "effort",
+          "fast",
+          "heapdump",
+          "init",
+          "mcp",
+          "import",
+          "model",
+          "__remote-workflow",
+          "workflow-launch-exec",
+          "reload-skills",
+          "rename",
+          "ultrareview",
+          "security-review",
+          "usage-credits",
+          "extra-usage",
+          "usage",
+          "insights",
+          "recap",
+          "goal",
+          "design",
+          "design-consent",
+          "design-revoke",
+          "team-onboarding"
+        ],
+        "title": "test",
+        "tools": [
+          "Task",
+          "AskUserQuestion",
+          "Bash",
+          "CronCreate",
+          "CronDelete",
+          "CronList",
+          "DesignSync",
+          "Edit",
+          "EnterPlanMode",
+          "EnterWorktree",
+          "ExitPlanMode",
+          "ExitWorktree",
+          "Glob",
+          "Grep",
+          "Monitor",
+          "NotebookEdit",
+          "PowerShell",
+          "PushNotification",
+          "Read",
+          "RemoteTrigger",
+          "ReportFindings",
+          "ScheduleWakeup",
+          "SendMessage",
+          "Skill",
+          "TaskCreate",
+          "TaskGet",
+          "TaskList",
+          "TaskOutput",
+          "TaskStop",
+          "TaskUpdate",
+          "ToolSearch",
+          "WebFetch",
+          "WebSearch",
+          "Workflow",
+          "Write"
+        ]
+      },
+      "type": "Ready"
+    },
+    "seq": 1
+  },
+  {
+    "event": {
+      "status": "Working",
+      "type": "Status"
+    },
+    "seq": 2
+  },
+  {
+    "event": {
+      "info": {
+        "isUsingOverage": false,
+        "overageDisabledReason": "org_level_disabled",
+        "overageStatus": "rejected",
+        "rateLimitType": "five_hour",
+        "resetsAt": 1786316400,
+        "status": "allowed"
+      },
+      "type": "RateLimit"
+    },
+    "seq": 3
+  },
+  {
+    "event": {
+      "item": {
+        "id": "b6c877d7-ab32-4eb6-ac81-588b0980819f:0",
+        "injected": false,
+        "kind": "UserText",
+        "text": "Count from 1 to 300, one number per line, no other text."
+      },
+      "type": "ItemCompleted"
+    },
+    "seq": 4
+  },
+  {
+    "event": {
+      "item": {
+        "id": "msg_011Cdseu3nZV3s6saTQ41Thk:0",
+        "kind": "Thinking",
+        "parent_tool_use_id": null,
+        "text": ""
+      },
+      "type": "ItemStarted"
+    },
+    "seq": 5
+  },
+  {
+    "event": {
+      "delta": "The user wants",
+      "item_id": "msg_011Cdseu3nZV3s6saTQ41Thk:0",
+      "kind": "Thinking",
+      "type": "ItemDelta"
+    },
+    "seq": 6
+  },
+  {
+    "event": {
+      "delta": " me to count from",
+      "item_id": "msg_011Cdseu3nZV3s6saTQ41Thk:0",
+      "kind": "Thinking",
+      "type": "ItemDelta"
+    },
+    "seq": 7
+  },
+  {
+    "event": {
+      "delta": " 1 to",
+      "item_id": "msg_011Cdseu3nZV3s6saTQ41Thk:0",
+      "kind": "Thinking",
+      "type": "ItemDelta"
+    },
+    "seq": 8
+  },
+  {
+    "event": {
+      "delta": " 300, one",
+      "item_id": "msg_011Cdseu3nZV3s6saTQ41Thk:0",
+      "kind": "Thinking",
+      "type": "ItemDelta"
+    },
+    "seq": 9
+  },
+  {
+    "event": {
+      "delta": " number per line with",
+      "item_id": "msg_011Cdseu3nZV3s6saTQ41Thk:0",
+      "kind": "Thinking",
+      "type": "ItemDelta"
+    },
+    "seq": 10
+  },
+  {
+    "event": {
+      "delta": " no other text. This is a straightforward request. I should just output the numbers 1 through 300, each on its own line.\n\nThis",
+      "item_id": "msg_011Cdseu3nZV3s6saTQ41Thk:0",
+      "kind": "Thinking",
+      "type": "ItemDelta"
+    },
+    "seq": 11
+  },
+  {
+    "event": {
+      "delta": " doesn't require any tool use - it's just text output.",
+      "item_id": "msg_011Cdseu3nZV3s6saTQ41Thk:0",
+      "kind": "Thinking",
+      "type": "ItemDelta"
+    },
+    "seq": 12
+  },
+  {
+    "event": {
+      "item": {
+        "id": "msg_011Cdseu3nZV3s6saTQ41Thk:0",
+        "kind": "Thinking",
+        "parent_tool_use_id": null,
+        "text": "The user wants me to count from 1 to 300, one number per line with no other text. This is a straightforward request. I should just output the numbers 1 through 300, each on its own line.\n\nThis doesn't require any tool use - it's just text output."
+      },
+      "type": "ItemCompleted"
+    },
+    "seq": 13
+  },
+  {
+    "event": {
+      "item": {
+        "id": "msg_011Cdseu3nZV3s6saTQ41Thk:1",
+        "kind": "AssistantText",
+        "parent_tool_use_id": null,
+        "text": ""
+      },
+      "type": "ItemStarted"
+    },
+    "seq": 14
+  },
+  {
+    "event": {
+      "delta": "1\n2\n3\n4",
+      "item_id": "msg_011Cdseu3nZV3s6saTQ41Thk:1",
+      "kind": "Text",
+      "type": "ItemDelta"
+    },
+    "seq": 15
+  },
+  {
+    "event": {
+      "delta": "\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\n15\n16\n17\n18\n19\n20\n21\n22\n23\n24\n25\n26\n27\n28",
+      "item_id": "msg_011Cdseu3nZV3s6saTQ41Thk:1",
+      "kind": "Text",
+      "type": "ItemDelta"
+    },
+    "seq": 16
+  },
+  {
+    "event": {
+      "delta": "\n29\n30\n31\n32\n33\n34\n35\n36\n37\n38\n39\n40\n41\n42\n43\n44\n45\n46\n47\n48\n49\n50\n51\n52",
+      "item_id": "msg_011Cdseu3nZV3s6saTQ41Thk:1",
+      "kind": "Text",
+      "type": "ItemDelta"
+    },
+    "seq": 17
+  },
+  {
+    "event": {
+      "delta": "\n53\n54\n55\n56\n57\n58\n59\n60\n61\n62\n63\n64\n65\n66\n67\n68\n69\n70\n71\n72\n73\n74\n75\n76",
+      "item_id": "msg_011Cdseu3nZV3s6saTQ41Thk:1",
+      "kind": "Text",
+      "type": "ItemDelta"
+    },
+    "seq": 18
+  },
+  {
+    "event": {
+      "item": {
+        "id": "msg_011Cdseu3nZV3s6saTQ41Thk:1",
+        "kind": "AssistantText",
+        "parent_tool_use_id": null,
+        "text": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\n15\n16\n17\n18\n19\n20\n21\n22\n23\n24\n25\n26\n27\n28\n29\n30\n31\n32\n33\n34\n35\n36\n37\n38\n39\n40\n41\n42\n43\n44\n45\n46\n47\n48\n49\n50\n51\n52\n53\n54\n55\n56\n57\n58\n59\n60\n61\n62\n63\n64\n65\n66\n67\n68\n69\n70\n71\n72\n73\n74\n75\n76"
+      },
+      "type": "ItemCompleted"
+    },
+    "seq": 19
+  },
+  {
+    "event": {
+      "item": {
+        "id": "77116501-aba3-493e-a078-1dd7cd4b9cbb:0",
+        "injected": true,
+        "kind": "UserText",
+        "text": "[Request interrupted by user]"
+      },
+      "type": "ItemCompleted"
+    },
+    "seq": 20
+  },
+  {
+    "event": {
+      "stats": {
+        "duration_ms": 2930,
+        "is_error": true,
+        "result_text": null,
+        "terminal_reason": "aborted_streaming",
+        "total_cost_usd": 0.000624,
+        "turn_cost_usd": 0.000624
+      },
+      "type": "TurnCompleted"
+    },
+    "seq": 21
+  },
+  {
+    "event": {
+      "stats": {
+        "context_used_tokens": null,
+        "context_window": 200000,
+        "total_cost_usd": 0.000624,
+        "turns": 1
+      },
+      "type": "StatsUpdated"
+    },
+    "seq": 22
+  },
+  {
+    "event": {
+      "status": "Idle",
+      "type": "Status"
+    },
+    "seq": 23
+  }
+]

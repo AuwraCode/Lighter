@@ -65,3 +65,8 @@ export function removeSession(sessionId: string): Promise<void> {
 export function listSessions(): Promise<SessionInfo[]> {
   return invoke("list_sessions");
 }
+
+/** Exactly one session (or none) is focused; only it receives text deltas. */
+export function setFocus(sessionId: string | null): Promise<void> {
+  return invoke("set_focus", { sessionId });
+}

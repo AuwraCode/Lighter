@@ -27,6 +27,7 @@ const MAX_LINE_BYTES: usize = 16 * 1024 * 1024;
 const CONTROL_TIMEOUT: Duration = Duration::from_secs(10);
 const GRACEFUL_KILL_DEADLINE: Duration = Duration::from_secs(5);
 const STDERR_RING_LINES: usize = 200;
+const DELTA_FLUSH_INTERVAL: Duration = Duration::from_millis(33);
 
 pub enum SessionCommand {
     Attach {
@@ -52,6 +53,9 @@ pub enum SessionCommand {
     Interrupt {
         reply: oneshot::Sender<Result<(), String>>,
     },
+    /// Only the focused session receives ItemDelta events; background
+    /// sessions catch up via ItemCompleted and the focus-time sync below.
+    SetFocus(bool),
     Stop {
         graceful: bool,
     },
@@ -64,6 +68,7 @@ enum IoMsg {
     Exited(Option<i32>),
     CtrlTimeout(String),
     KillDeadline,
+    FlushDeltas,
 }
 
 enum PendingCtrl {
@@ -97,6 +102,10 @@ struct Router {
     exited: bool,
     kill_scheduled: bool,
     stop_requested: bool,
+    focused: bool,
+    /// Coalescing buffer for ItemDelta envelopes (seq already assigned).
+    delta_buf: Vec<Envelope>,
+    flush_armed: bool,
 }
 
 pub fn start(
@@ -206,6 +215,9 @@ pub fn start(
         exited: false,
         kill_scheduled: false,
         stop_requested: false,
+        focused: true,
+        delta_buf: Vec::new(),
+        flush_armed: false,
     };
 
     tokio::spawn(router.run(cmd_rx, io_rx, initial_prompt));
@@ -246,7 +258,9 @@ impl Router {
         match cmd {
             SessionCommand::Attach { channel, reply } => {
                 // Snapshot and sink swap happen between two frames, so the
-                // snapshot + subsequent events form a gapless sequence.
+                // snapshot + subsequent events form a gapless sequence. Any
+                // buffered deltas are already part of the snapshot text.
+                self.delta_buf.clear();
                 let snapshot = self.state.snapshot(self.seq);
                 self.sink = Some(channel);
                 let _ = reply.send(snapshot);
@@ -289,6 +303,25 @@ impl Router {
                     outbound::ControlRequest::Interrupt,
                     PendingCtrl::Interrupt { reply },
                 );
+            }
+            SessionCommand::SetFocus(focused) => {
+                if self.focused == focused {
+                    return;
+                }
+                self.focused = focused;
+                if focused {
+                    // Catch the UI up on text that streamed while this session
+                    // was in the background (deltas were dropped).
+                    let events: Vec<SessionEvent> = self
+                        .state
+                        .streaming_items()
+                        .into_iter()
+                        .map(|item| SessionEvent::ItemUpdated { item })
+                        .collect();
+                    self.emit(events);
+                } else {
+                    self.flush_deltas();
+                }
             }
             SessionCommand::Stop { graceful } => self.stop(graceful),
         }
@@ -350,6 +383,7 @@ impl Router {
                     self.kill_now();
                 }
             }
+            IoMsg::FlushDeltas => self.flush_deltas(),
         }
     }
 
@@ -526,24 +560,82 @@ impl Router {
         }
     }
 
+    /// Route events to the IPC sink. ItemDelta is coalesced on a ~33ms timer
+    /// and only delivered to the focused session; everything else flushes
+    /// immediately (draining pending deltas first to preserve order).
     fn emit(&mut self, events: Vec<SessionEvent>) {
+        for event in events {
+            self.seq += 1;
+            let seq = self.seq;
+            match event {
+                SessionEvent::ItemDelta {
+                    item_id,
+                    kind,
+                    delta,
+                } => {
+                    if !self.focused {
+                        // Dropped by design: state already holds the full
+                        // text; ItemCompleted / focus-sync carry it to the UI.
+                        continue;
+                    }
+                    if let Some(Envelope {
+                        seq: last_seq,
+                        event:
+                            SessionEvent::ItemDelta {
+                                item_id: last_id,
+                                delta: last_delta,
+                                ..
+                            },
+                    }) = self.delta_buf.last_mut()
+                    {
+                        if *last_id == item_id {
+                            last_delta.push_str(&delta);
+                            *last_seq = seq;
+                            continue;
+                        }
+                    }
+                    self.delta_buf.push(Envelope {
+                        seq,
+                        event: SessionEvent::ItemDelta {
+                            item_id,
+                            kind,
+                            delta,
+                        },
+                    });
+                    if !self.flush_armed {
+                        self.flush_armed = true;
+                        let io_tx = self.io_tx.clone();
+                        tokio::spawn(async move {
+                            tokio::time::sleep(DELTA_FLUSH_INTERVAL).await;
+                            let _ = io_tx.send(IoMsg::FlushDeltas);
+                        });
+                    }
+                }
+                other => {
+                    self.flush_deltas();
+                    self.send_batch(vec![Envelope { seq, event: other }]);
+                }
+            }
+        }
+    }
+
+    fn flush_deltas(&mut self) {
+        self.flush_armed = false;
+        if self.delta_buf.is_empty() {
+            return;
+        }
+        let events = std::mem::take(&mut self.delta_buf);
+        self.send_batch(events);
+    }
+
+    fn send_batch(&mut self, events: Vec<Envelope>) {
         if events.is_empty() {
             return;
         }
-        let envelopes: Vec<Envelope> = events
-            .into_iter()
-            .map(|event| {
-                self.seq += 1;
-                Envelope {
-                    seq: self.seq,
-                    event,
-                }
-            })
-            .collect();
         if let Some(sink) = &self.sink {
             let batch = Batch {
                 session_id: self.session_id,
-                events: envelopes,
+                events,
             };
             if sink.send(batch).is_err() {
                 // Webview is gone (reload); state keeps accumulating and the

@@ -1,0 +1,884 @@
+[
+  {
+    "event": {
+      "meta": {
+        "claude_version": "2.1.226",
+        "cwd": "C:\\Users\\USER\\AppData\\Local\\Temp\\lighter-probe\\always_allow",
+        "model": "claude-haiku-4-5-20251001",
+        "permission_mode": "default",
+        "session_id": "75ebcab5-702a-4888-8883-fdda6ef55457",
+        "slash_commands": [
+          "deep-research",
+          "design-sync",
+          "dataviz",
+          "update-config",
+          "verify",
+          "debug",
+          "code-review",
+          "simplify",
+          "batch",
+          "fewer-permission-prompts",
+          "doctor",
+          "loop",
+          "schedule",
+          "claude-api",
+          "run",
+          "run-skill-generator",
+          "agents",
+          "autocompact",
+          "clear",
+          "color",
+          "compact",
+          "config",
+          "context",
+          "effort",
+          "fast",
+          "heapdump",
+          "init",
+          "mcp",
+          "import",
+          "model",
+          "__remote-workflow",
+          "workflow-launch-exec",
+          "reload-skills",
+          "rename",
+          "ultrareview",
+          "security-review",
+          "usage-credits",
+          "extra-usage",
+          "usage",
+          "insights",
+          "recap",
+          "goal",
+          "design",
+          "design-consent",
+          "design-revoke",
+          "team-onboarding"
+        ],
+        "title": "test",
+        "tools": [
+          "Task",
+          "AskUserQuestion",
+          "Bash",
+          "CronCreate",
+          "CronDelete",
+          "CronList",
+          "DesignSync",
+          "Edit",
+          "EnterPlanMode",
+          "EnterWorktree",
+          "ExitPlanMode",
+          "ExitWorktree",
+          "Glob",
+          "Grep",
+          "Monitor",
+          "NotebookEdit",
+          "PowerShell",
+          "PushNotification",
+          "Read",
+          "RemoteTrigger",
+          "ReportFindings",
+          "ScheduleWakeup",
+          "SendMessage",
+          "Skill",
+          "TaskCreate",
+          "TaskGet",
+          "TaskList",
+          "TaskOutput",
+          "TaskStop",
+          "TaskUpdate",
+          "ToolSearch",
+          "WebFetch",
+          "WebSearch",
+          "Workflow",
+          "Write"
+        ]
+      },
+      "type": "Ready"
+    },
+    "seq": 1
+  },
+  {
+    "event": {
+      "status": "Working",
+      "type": "Status"
+    },
+    "seq": 2
+  },
+  {
+    "event": {
+      "item": {
+        "id": "3c5b1806-ec66-43a6-8b1a-82c389a0ec47:0",
+        "injected": false,
+        "kind": "UserText",
+        "text": "Use the Write tool to create a file named aa-one.txt containing exactly: one"
+      },
+      "type": "ItemCompleted"
+    },
+    "seq": 3
+  },
+  {
+    "event": {
+      "item": {
+        "id": "msg_011CdsfFEwakmVwCp7KzMevh:0",
+        "kind": "Thinking",
+        "parent_tool_use_id": null,
+        "text": ""
+      },
+      "type": "ItemStarted"
+    },
+    "seq": 4
+  },
+  {
+    "event": {
+      "delta": "The user wants",
+      "item_id": "msg_011CdsfFEwakmVwCp7KzMevh:0",
+      "kind": "Thinking",
+      "type": "ItemDelta"
+    },
+    "seq": 5
+  },
+  {
+    "event": {
+      "delta": " me to create a",
+      "item_id": "msg_011CdsfFEwakmVwCp7KzMevh:0",
+      "kind": "Thinking",
+      "type": "ItemDelta"
+    },
+    "seq": 6
+  },
+  {
+    "event": {
+      "delta": " file named \"aa",
+      "item_id": "msg_011CdsfFEwakmVwCp7KzMevh:0",
+      "kind": "Thinking",
+      "type": "ItemDelta"
+    },
+    "seq": 7
+  },
+  {
+    "event": {
+      "delta": "-one.txt",
+      "item_id": "msg_011CdsfFEwakmVwCp7KzMevh:0",
+      "kind": "Thinking",
+      "type": "ItemDelta"
+    },
+    "seq": 8
+  },
+  {
+    "event": {
+      "delta": "\" with the content \"one\". This is straightforward - I need to use the Write tool.\n\nI need to provide:\n- file",
+      "item_id": "msg_011CdsfFEwakmVwCp7KzMevh:0",
+      "kind": "Thinking",
+      "type": "ItemDelta"
+    },
+    "seq": 9
+  },
+  {
+    "event": {
+      "info": {
+        "isUsingOverage": false,
+        "overageDisabledReason": "org_level_disabled",
+        "overageStatus": "rejected",
+        "rateLimitType": "five_hour",
+        "resetsAt": 1786316400,
+        "status": "allowed"
+      },
+      "type": "RateLimit"
+    },
+    "seq": 10
+  },
+  {
+    "event": {
+      "delta": "_path: should be an absolute path. Given the working directory is C:\\Users\\USER\\AppData\\Local\\",
+      "item_id": "msg_011CdsfFEwakmVwCp7KzMevh:0",
+      "kind": "Thinking",
+      "type": "ItemDelta"
+    },
+    "seq": 11
+  },
+  {
+    "event": {
+      "delta": "Temp\\lighter-probe\\always_allow, I should write to C:\\Users",
+      "item_id": "msg_011CdsfFEwakmVwCp7KzMevh:0",
+      "kind": "Thinking",
+      "type": "ItemDelta"
+    },
+    "seq": 12
+  },
+  {
+    "event": {
+      "delta": "\\grzeg\\AppData\\Local\\Temp\\lighter-probe\\always_allow\\aa-one.txt\n- content: \"one\"",
+      "item_id": "msg_011CdsfFEwakmVwCp7KzMevh:0",
+      "kind": "Thinking",
+      "type": "ItemDelta"
+    },
+    "seq": 13
+  },
+  {
+    "event": {
+      "item": {
+        "id": "msg_011CdsfFEwakmVwCp7KzMevh:0",
+        "kind": "Thinking",
+        "parent_tool_use_id": null,
+        "text": "The user wants me to create a file named \"aa-one.txt\" with the content \"one\". This is straightforward - I need to use the Write tool.\n\nI need to provide:\n- file_path: should be an absolute path. Given the working directory is C:\\Users\\USER\\AppData\\Local\\Temp\\lighter-probe\\always_allow, I should write to C:\\Users\\USER\\AppData\\Local\\Temp\\lighter-probe\\always_allow\\aa-one.txt\n- content: \"one\""
+      },
+      "type": "ItemCompleted"
+    },
+    "seq": 14
+  },
+  {
+    "event": {
+      "item": {
+        "id": "toolu_01B8qKVFGkzxjvU52waaiV6z",
+        "input": {},
+        "kind": "ToolUse",
+        "name": "Write",
+        "output": null,
+        "parent_tool_use_id": null
+      },
+      "type": "ItemStarted"
+    },
+    "seq": 15
+  },
+  {
+    "event": {
+      "item": {
+        "id": "toolu_01B8qKVFGkzxjvU52waaiV6z",
+        "input": {
+          "content": "one",
+          "file_path": "C:\\Users\\USER\\AppData\\Local\\Temp\\lighter-probe\\always_allow\\aa-one.txt"
+        },
+        "kind": "ToolUse",
+        "name": "Write",
+        "output": null,
+        "parent_tool_use_id": null
+      },
+      "type": "ItemCompleted"
+    },
+    "seq": 16
+  },
+  {
+    "event": {
+      "request": {
+        "description": "aa-one.txt",
+        "display_name": "Write",
+        "input": {
+          "content": "one",
+          "file_path": "C:\\Users\\USER\\AppData\\Local\\Temp\\lighter-probe\\always_allow\\aa-one.txt"
+        },
+        "request_id": "25606e92-4d6b-47df-925b-56a6652bb901",
+        "suggestions": [
+          {
+            "destination": "session",
+            "mode": "acceptEdits",
+            "type": "setMode"
+          }
+        ],
+        "tool_name": "Write",
+        "tool_use_id": "toolu_01B8qKVFGkzxjvU52waaiV6z"
+      },
+      "type": "PermissionRequested"
+    },
+    "seq": 17
+  },
+  {
+    "event": {
+      "status": "AwaitingApproval",
+      "type": "Status"
+    },
+    "seq": 18
+  },
+  {
+    "event": {
+      "item": {
+        "id": "toolu_01B8qKVFGkzxjvU52waaiV6z",
+        "input": {
+          "content": "one",
+          "file_path": "C:\\Users\\USER\\AppData\\Local\\Temp\\lighter-probe\\always_allow\\aa-one.txt"
+        },
+        "kind": "ToolUse",
+        "name": "Write",
+        "output": {
+          "is_error": false,
+          "raw": {
+            "content": "one",
+            "filePath": "C:\\Users\\USER\\AppData\\Local\\Temp\\lighter-probe\\always_allow\\aa-one.txt",
+            "originalFile": null,
+            "structuredPatch": [],
+            "type": "create",
+            "userModified": false
+          },
+          "text": "File created successfully at: C:\\Users\\USER\\AppData\\Local\\Temp\\lighter-probe\\always_allow\\aa-one.txt (file state is current in your context — no need to Read it back)",
+          "truncated": false
+        },
+        "parent_tool_use_id": null
+      },
+      "type": "ItemUpdated"
+    },
+    "seq": 19
+  },
+  {
+    "event": {
+      "stats": {
+        "context_used_tokens": 20821,
+        "context_window": null,
+        "total_cost_usd": 0.0,
+        "turns": 0
+      },
+      "type": "StatsUpdated"
+    },
+    "seq": 20
+  },
+  {
+    "event": {
+      "status": "Working",
+      "type": "Status"
+    },
+    "seq": 21
+  },
+  {
+    "event": {
+      "item": {
+        "id": "msg_011CdsfFUSSK23KoFyw6pVLg:0",
+        "kind": "Thinking",
+        "parent_tool_use_id": null,
+        "text": ""
+      },
+      "type": "ItemStarted"
+    },
+    "seq": 22
+  },
+  {
+    "event": {
+      "delta": "Great",
+      "item_id": "msg_011CdsfFUSSK23KoFyw6pVLg:0",
+      "kind": "Thinking",
+      "type": "ItemDelta"
+    },
+    "seq": 23
+  },
+  {
+    "event": {
+      "delta": "! The",
+      "item_id": "msg_011CdsfFUSSK23KoFyw6pVLg:0",
+      "kind": "Thinking",
+      "type": "ItemDelta"
+    },
+    "seq": 24
+  },
+  {
+    "event": {
+      "delta": " file has been created successfully at the specified location with the exact content \"one\". The task is complete.",
+      "item_id": "msg_011CdsfFUSSK23KoFyw6pVLg:0",
+      "kind": "Thinking",
+      "type": "ItemDelta"
+    },
+    "seq": 25
+  },
+  {
+    "event": {
+      "item": {
+        "id": "msg_011CdsfFUSSK23KoFyw6pVLg:0",
+        "kind": "Thinking",
+        "parent_tool_use_id": null,
+        "text": "Great! The file has been created successfully at the specified location with the exact content \"one\". The task is complete."
+      },
+      "type": "ItemCompleted"
+    },
+    "seq": 26
+  },
+  {
+    "event": {
+      "item": {
+        "id": "msg_011CdsfFUSSK23KoFyw6pVLg:1",
+        "kind": "AssistantText",
+        "parent_tool_use_id": null,
+        "text": ""
+      },
+      "type": "ItemStarted"
+    },
+    "seq": 27
+  },
+  {
+    "event": {
+      "delta": "Done",
+      "item_id": "msg_011CdsfFUSSK23KoFyw6pVLg:1",
+      "kind": "Text",
+      "type": "ItemDelta"
+    },
+    "seq": 28
+  },
+  {
+    "event": {
+      "delta": "! I've created the file `aa-one.txt` with the content \"one\" in your working directory.",
+      "item_id": "msg_011CdsfFUSSK23KoFyw6pVLg:1",
+      "kind": "Text",
+      "type": "ItemDelta"
+    },
+    "seq": 29
+  },
+  {
+    "event": {
+      "item": {
+        "id": "msg_011CdsfFUSSK23KoFyw6pVLg:1",
+        "kind": "AssistantText",
+        "parent_tool_use_id": null,
+        "text": "Done! I've created the file `aa-one.txt` with the content \"one\" in your working directory."
+      },
+      "type": "ItemCompleted"
+    },
+    "seq": 30
+  },
+  {
+    "event": {
+      "stats": {
+        "context_used_tokens": 20987,
+        "context_window": null,
+        "total_cost_usd": 0.0,
+        "turns": 0
+      },
+      "type": "StatsUpdated"
+    },
+    "seq": 31
+  },
+  {
+    "event": {
+      "stats": {
+        "duration_ms": 5162,
+        "is_error": false,
+        "result_text": "Done! I've created the file `aa-one.txt` with the content \"one\" in your working directory.",
+        "terminal_reason": "completed",
+        "total_cost_usd": 0.0117182,
+        "turn_cost_usd": 0.0117182
+      },
+      "type": "TurnCompleted"
+    },
+    "seq": 32
+  },
+  {
+    "event": {
+      "stats": {
+        "context_used_tokens": 41808,
+        "context_window": 200000,
+        "total_cost_usd": 0.0117182,
+        "turns": 1
+      },
+      "type": "StatsUpdated"
+    },
+    "seq": 33
+  },
+  {
+    "event": {
+      "status": "Idle",
+      "type": "Status"
+    },
+    "seq": 34
+  },
+  {
+    "event": {
+      "meta": {
+        "claude_version": "2.1.226",
+        "cwd": "C:\\Users\\USER\\AppData\\Local\\Temp\\lighter-probe\\always_allow",
+        "model": "claude-haiku-4-5-20251001",
+        "permission_mode": "acceptEdits",
+        "session_id": "75ebcab5-702a-4888-8883-fdda6ef55457",
+        "slash_commands": [
+          "deep-research",
+          "design-sync",
+          "dataviz",
+          "update-config",
+          "verify",
+          "debug",
+          "code-review",
+          "simplify",
+          "batch",
+          "fewer-permission-prompts",
+          "doctor",
+          "loop",
+          "schedule",
+          "claude-api",
+          "run",
+          "run-skill-generator",
+          "agents",
+          "autocompact",
+          "clear",
+          "color",
+          "compact",
+          "config",
+          "context",
+          "effort",
+          "fast",
+          "heapdump",
+          "init",
+          "mcp",
+          "import",
+          "model",
+          "__remote-workflow",
+          "workflow-launch-exec",
+          "reload-skills",
+          "rename",
+          "ultrareview",
+          "security-review",
+          "usage-credits",
+          "extra-usage",
+          "usage",
+          "insights",
+          "recap",
+          "goal",
+          "design",
+          "design-consent",
+          "design-revoke",
+          "team-onboarding"
+        ],
+        "title": "test",
+        "tools": [
+          "Task",
+          "AskUserQuestion",
+          "Bash",
+          "CronCreate",
+          "CronDelete",
+          "CronList",
+          "DesignSync",
+          "Edit",
+          "EnterPlanMode",
+          "EnterWorktree",
+          "ExitPlanMode",
+          "ExitWorktree",
+          "Glob",
+          "Grep",
+          "Monitor",
+          "NotebookEdit",
+          "PowerShell",
+          "PushNotification",
+          "Read",
+          "RemoteTrigger",
+          "ReportFindings",
+          "ScheduleWakeup",
+          "SendMessage",
+          "Skill",
+          "TaskCreate",
+          "TaskGet",
+          "TaskList",
+          "TaskOutput",
+          "TaskStop",
+          "TaskUpdate",
+          "ToolSearch",
+          "WebFetch",
+          "WebSearch",
+          "Workflow",
+          "Write"
+        ]
+      },
+      "type": "Ready"
+    },
+    "seq": 35
+  },
+  {
+    "event": {
+      "status": "Working",
+      "type": "Status"
+    },
+    "seq": 36
+  },
+  {
+    "event": {
+      "item": {
+        "id": "c7734b7f-1a2e-4294-975b-9563c92a4a73:0",
+        "injected": false,
+        "kind": "UserText",
+        "text": "Use the Write tool to create a file named aa-two.txt containing exactly: two"
+      },
+      "type": "ItemCompleted"
+    },
+    "seq": 37
+  },
+  {
+    "event": {
+      "item": {
+        "id": "msg_011CdsfFc55RHhFp4DHeS6d6:0",
+        "kind": "Thinking",
+        "parent_tool_use_id": null,
+        "text": ""
+      },
+      "type": "ItemStarted"
+    },
+    "seq": 38
+  },
+  {
+    "event": {
+      "delta": "The user wants me",
+      "item_id": "msg_011CdsfFc55RHhFp4DHeS6d6:0",
+      "kind": "Thinking",
+      "type": "ItemDelta"
+    },
+    "seq": 39
+  },
+  {
+    "event": {
+      "delta": " to create another file named \"aa-two.txt\" with the content \"two\". This is the same as the previous request but with a different filename and",
+      "item_id": "msg_011CdsfFc55RHhFp4DHeS6d6:0",
+      "kind": "Thinking",
+      "type": "ItemDelta"
+    },
+    "seq": 40
+  },
+  {
+    "event": {
+      "delta": " content.\n\nI'll use the Write tool with:\n- file_path: C:\\Users\\USER\\AppData\\Local\\Temp\\lighter-probe\\always_allow\\aa-",
+      "item_id": "msg_011CdsfFc55RHhFp4DHeS6d6:0",
+      "kind": "Thinking",
+      "type": "ItemDelta"
+    },
+    "seq": 41
+  },
+  {
+    "event": {
+      "delta": "two.txt\n- content: \"two\"",
+      "item_id": "msg_011CdsfFc55RHhFp4DHeS6d6:0",
+      "kind": "Thinking",
+      "type": "ItemDelta"
+    },
+    "seq": 42
+  },
+  {
+    "event": {
+      "item": {
+        "id": "msg_011CdsfFc55RHhFp4DHeS6d6:0",
+        "kind": "Thinking",
+        "parent_tool_use_id": null,
+        "text": "The user wants me to create another file named \"aa-two.txt\" with the content \"two\". This is the same as the previous request but with a different filename and content.\n\nI'll use the Write tool with:\n- file_path: C:\\Users\\USER\\AppData\\Local\\Temp\\lighter-probe\\always_allow\\aa-two.txt\n- content: \"two\""
+      },
+      "type": "ItemCompleted"
+    },
+    "seq": 43
+  },
+  {
+    "event": {
+      "item": {
+        "id": "toolu_01Tf1DiSSD1fswX4UJH2cTJN",
+        "input": {},
+        "kind": "ToolUse",
+        "name": "Write",
+        "output": null,
+        "parent_tool_use_id": null
+      },
+      "type": "ItemStarted"
+    },
+    "seq": 44
+  },
+  {
+    "event": {
+      "item": {
+        "id": "toolu_01Tf1DiSSD1fswX4UJH2cTJN",
+        "input": {
+          "content": "two",
+          "file_path": "C:\\Users\\USER\\AppData\\Local\\Temp\\lighter-probe\\always_allow\\aa-two.txt"
+        },
+        "kind": "ToolUse",
+        "name": "Write",
+        "output": null,
+        "parent_tool_use_id": null
+      },
+      "type": "ItemCompleted"
+    },
+    "seq": 45
+  },
+  {
+    "event": {
+      "item": {
+        "id": "toolu_01Tf1DiSSD1fswX4UJH2cTJN",
+        "input": {
+          "content": "two",
+          "file_path": "C:\\Users\\USER\\AppData\\Local\\Temp\\lighter-probe\\always_allow\\aa-two.txt"
+        },
+        "kind": "ToolUse",
+        "name": "Write",
+        "output": {
+          "is_error": false,
+          "raw": {
+            "content": "two",
+            "filePath": "C:\\Users\\USER\\AppData\\Local\\Temp\\lighter-probe\\always_allow\\aa-two.txt",
+            "originalFile": null,
+            "structuredPatch": [],
+            "type": "create",
+            "userModified": false
+          },
+          "text": "File created successfully at: C:\\Users\\USER\\AppData\\Local\\Temp\\lighter-probe\\always_allow\\aa-two.txt (file state is current in your context — no need to Read it back)",
+          "truncated": false
+        },
+        "parent_tool_use_id": null
+      },
+      "type": "ItemUpdated"
+    },
+    "seq": 46
+  },
+  {
+    "event": {
+      "stats": {
+        "context_used_tokens": 21245,
+        "context_window": 200000,
+        "total_cost_usd": 0.0117182,
+        "turns": 1
+      },
+      "type": "StatsUpdated"
+    },
+    "seq": 47
+  },
+  {
+    "event": {
+      "item": {
+        "id": "msg_011CdsfFnGzMmAZ9Aujy2NqF:0",
+        "kind": "Thinking",
+        "parent_tool_use_id": null,
+        "text": ""
+      },
+      "type": "ItemStarted"
+    },
+    "seq": 48
+  },
+  {
+    "event": {
+      "delta": "Perfect! The",
+      "item_id": "msg_011CdsfFnGzMmAZ9Aujy2NqF:0",
+      "kind": "Thinking",
+      "type": "ItemDelta"
+    },
+    "seq": 49
+  },
+  {
+    "event": {
+      "delta": " file \"",
+      "item_id": "msg_011CdsfFnGzMmAZ9Aujy2NqF:0",
+      "kind": "Thinking",
+      "type": "ItemDelta"
+    },
+    "seq": 50
+  },
+  {
+    "event": {
+      "delta": "aa-two.",
+      "item_id": "msg_011CdsfFnGzMmAZ9Aujy2NqF:0",
+      "kind": "Thinking",
+      "type": "ItemDelta"
+    },
+    "seq": 51
+  },
+  {
+    "event": {
+      "delta": "txt\" has been",
+      "item_id": "msg_011CdsfFnGzMmAZ9Aujy2NqF:0",
+      "kind": "Thinking",
+      "type": "ItemDelta"
+    },
+    "seq": 52
+  },
+  {
+    "event": {
+      "delta": " created with the content",
+      "item_id": "msg_011CdsfFnGzMmAZ9Aujy2NqF:0",
+      "kind": "Thinking",
+      "type": "ItemDelta"
+    },
+    "seq": 53
+  },
+  {
+    "event": {
+      "delta": " \"two\". The task is complete.",
+      "item_id": "msg_011CdsfFnGzMmAZ9Aujy2NqF:0",
+      "kind": "Thinking",
+      "type": "ItemDelta"
+    },
+    "seq": 54
+  },
+  {
+    "event": {
+      "item": {
+        "id": "msg_011CdsfFnGzMmAZ9Aujy2NqF:0",
+        "kind": "Thinking",
+        "parent_tool_use_id": null,
+        "text": "Perfect! The file \"aa-two.txt\" has been created with the content \"two\". The task is complete."
+      },
+      "type": "ItemCompleted"
+    },
+    "seq": 55
+  },
+  {
+    "event": {
+      "item": {
+        "id": "msg_011CdsfFnGzMmAZ9Aujy2NqF:1",
+        "kind": "AssistantText",
+        "parent_tool_use_id": null,
+        "text": ""
+      },
+      "type": "ItemStarted"
+    },
+    "seq": 56
+  },
+  {
+    "event": {
+      "delta": "Done! I've created the file `aa-two.txt` with the content \"two\" in your working directory.",
+      "item_id": "msg_011CdsfFnGzMmAZ9Aujy2NqF:1",
+      "kind": "Text",
+      "type": "ItemDelta"
+    },
+    "seq": 57
+  },
+  {
+    "event": {
+      "item": {
+        "id": "msg_011CdsfFnGzMmAZ9Aujy2NqF:1",
+        "kind": "AssistantText",
+        "parent_tool_use_id": null,
+        "text": "Done! I've created the file `aa-two.txt` with the content \"two\" in your working directory."
+      },
+      "type": "ItemCompleted"
+    },
+    "seq": 58
+  },
+  {
+    "event": {
+      "stats": {
+        "context_used_tokens": 21412,
+        "context_window": 200000,
+        "total_cost_usd": 0.0117182,
+        "turns": 1
+      },
+      "type": "StatsUpdated"
+    },
+    "seq": 59
+  },
+  {
+    "event": {
+      "stats": {
+        "duration_ms": 4123,
+        "is_error": false,
+        "result_text": "Done! I've created the file `aa-two.txt` with the content \"two\" in your working directory.",
+        "terminal_reason": "completed",
+        "total_cost_usd": 0.018060100000000003,
+        "turn_cost_usd": 0.006341900000000003
+      },
+      "type": "TurnCompleted"
+    },
+    "seq": 60
+  },
+  {
+    "event": {
+      "stats": {
+        "context_used_tokens": 42657,
+        "context_window": 200000,
+        "total_cost_usd": 0.018060100000000003,
+        "turns": 2
+      },
+      "type": "StatsUpdated"
+    },
+    "seq": 61
+  },
+  {
+    "event": {
+      "status": "Idle",
+      "type": "Status"
+    },
+    "seq": 62
+  }
+]

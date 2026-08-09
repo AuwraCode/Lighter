@@ -121,6 +121,16 @@ impl SessionManager {
             let _ = handle.tx.send(SessionCommand::Stop { graceful: true });
         }
     }
+
+    /// Exactly one session (or none) is focused; only it receives deltas.
+    pub fn set_focus(&self, focused: Option<Uuid>) {
+        let sessions = self.sessions.lock().unwrap();
+        for (id, handle) in sessions.iter() {
+            let _ = handle
+                .tx
+                .send(SessionCommand::SetFocus(Some(*id) == focused));
+        }
+    }
 }
 
 fn default_title(cwd: &str) -> String {
