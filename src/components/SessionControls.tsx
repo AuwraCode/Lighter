@@ -1,17 +1,12 @@
 // Shared session header controls (used by the full view and split-view panes).
 
+import { cn } from "@/lib/cn";
+import { modeSelectClass, PERMISSION_MODES } from "@/lib/status";
 import type { HandshakeInfo } from "@/lib/generated/HandshakeInfo";
 
 // The set_permission_mode control request accepts "default" (not "manual",
 // which is flag-only) — see PROTOCOL.md.
-export const MODES = [
-  "default",
-  "plan",
-  "acceptEdits",
-  "auto",
-  "dontAsk",
-  "bypassPermissions",
-];
+export const MODES = PERMISSION_MODES;
 
 export function ModeSwitcher({
   current,
@@ -29,7 +24,10 @@ export function ModeSwitcher({
       disabled={disabled}
       onChange={(e) => onChange(e.target.value)}
       title="Permission mode (live)"
-      className="shrink-0 rounded border border-border bg-elevated px-1.5 py-0.5 text-xs disabled:opacity-50"
+      className={cn(
+        "shrink-0 rounded border bg-elevated px-1.5 py-0.5 text-xs font-medium disabled:opacity-50",
+        modeSelectClass(current),
+      )}
     >
       {options.map((m) => (
         <option key={m} value={m}>

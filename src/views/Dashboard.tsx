@@ -17,7 +17,7 @@ import * as ipc from "@/lib/ipc";
 import type { Preset } from "@/lib/generated/Preset";
 import type { SessionRecord } from "@/lib/generated/SessionRecord";
 import type { SessionSummary } from "@/lib/generated/SessionSummary";
-import { statusDotClass, statusLabel } from "@/lib/status";
+import { modeTextClass, statusDotClass, statusLabel } from "@/lib/status";
 import { focusSession, openNewSession, useRegistry } from "@/stores/registry";
 import { dropSessionStore } from "@/stores/session";
 import { editPreset, launchPreset, usePresets } from "@/stores/presets";
@@ -327,6 +327,14 @@ function SessionTileInner({ summary }: { summary: SessionSummary }) {
           </span>
         )}
         <span>{shortModel(summary.model)}</span>
+        {summary.permission_mode && (
+          <>
+            <span>·</span>
+            <span className={modeTextClass(summary.permission_mode)}>
+              {summary.permission_mode}
+            </span>
+          </>
+        )}
         <span>·</span>
         <span>${summary.total_cost_usd.toFixed(3)}</span>
         {ctxPct != null && (
