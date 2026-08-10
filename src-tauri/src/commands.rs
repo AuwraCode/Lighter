@@ -336,11 +336,75 @@ use crate::skillsmith::eval::report::EvalReport;
 use crate::skillsmith::eval::run::{self, DescriptionFix};
 use crate::skillsmith::eval::testset::TriggerSet;
 use crate::skillsmith::eval::{build_catalog, model::Model};
+use crate::skillsmith::generate::draft::{
+    self, DraftInput, Redundancy, ScriptSuggestion,
+};
+use crate::skillsmith::generate::guards::{find_personas, slugify_name, IntentKind};
+use crate::skillsmith::generate::scaffold::{scaffold, ScaffoldResult, SkillSpec};
 
 /// Which model backend the eval will use for this account (api | cli).
 #[tauri::command]
 pub fn skill_model_kind(config_dir: Option<String>) -> String {
     Model::detect(config_dir).kind().to_string()
+}
+
+// ---- generator (guarded) --------------------------------------------------
+
+/// The discriminator gate: None → proceed to build a skill; Some(text) → the
+/// redirect to CLAUDE.md / a slash command / a subagent.
+#[tauri::command]
+pub fn skill_intent_redirect(kind: IntentKind) -> Option<String> {
+    kind.redirect().map(String::from)
+}
+
+#[tauri::command]
+pub fn skill_check_persona(text: String) -> Vec<String> {
+    find_personas(&text)
+}
+
+#[tauri::command]
+pub fn skill_suggest_name(title: String) -> String {
+    slugify_name(&title)
+}
+
+#[tauri::command]
+pub async fn skill_draft_description(
+    config_dir: Option<String>,
+    input: DraftInput,
+) -> Result<String> {
+    draft::draft_description(&Model::detect(config_dir), &input).await
+}
+
+#[tauri::command]
+pub async fn skill_draft_body(
+    config_dir: Option<String>,
+    input: DraftInput,
+) -> Result<String> {
+    draft::draft_body(&Model::detect(config_dir), &input).await
+}
+
+#[tauri::command]
+pub async fn skill_redundancy_check(
+    config_dir: Option<String>,
+    name: String,
+    description: String,
+) -> Result<Redundancy> {
+    draft::redundancy_check(&Model::detect(config_dir), &name, &description).await
+}
+
+#[tauri::command]
+pub async fn skill_suggest_script(
+    config_dir: Option<String>,
+    body: String,
+) -> Result<Option<ScriptSuggestion>> {
+    draft::suggest_script(&Model::detect(config_dir), &body).await
+}
+
+#[tauri::command]
+pub async fn skill_scaffold(parent_dir: String, spec: SkillSpec) -> Result<ScaffoldResult> {
+    tauri::async_runtime::spawn_blocking(move || scaffold(std::path::Path::new(&parent_dir), &spec))
+        .await
+        .map_err(|e| Error::Control(e.to_string()))?
 }
 
 #[tauri::command]

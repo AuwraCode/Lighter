@@ -93,6 +93,14 @@ pub fn run() {
             commands::skill_run_eval,
             commands::skill_propose_fix,
             commands::skill_apply_description,
+            commands::skill_intent_redirect,
+            commands::skill_check_persona,
+            commands::skill_suggest_name,
+            commands::skill_draft_description,
+            commands::skill_draft_body,
+            commands::skill_redundancy_check,
+            commands::skill_suggest_script,
+            commands::skill_scaffold,
         ])
         .on_window_event(|window, event| {
             // Closing the window gracefully stops every session first so CLIs

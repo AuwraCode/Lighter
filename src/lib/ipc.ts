@@ -13,6 +13,12 @@ import type { SkillMeta } from "./generated/SkillMeta";
 import type { TriggerSet } from "./generated/TriggerSet";
 import type { EvalReport } from "./generated/EvalReport";
 import type { DescriptionFix } from "./generated/DescriptionFix";
+import type { IntentKind } from "./generated/IntentKind";
+import type { DraftInput } from "./generated/DraftInput";
+import type { Redundancy } from "./generated/Redundancy";
+import type { ScriptSuggestion } from "./generated/ScriptSuggestion";
+import type { SkillSpec } from "./generated/SkillSpec";
+import type { ScaffoldResult } from "./generated/ScaffoldResult";
 
 export type BatchHandler = (batch: Batch) => void;
 
@@ -136,6 +142,54 @@ export function skillApplyDescription(
   description: string,
 ): Promise<ValidationReport> {
   return invoke("skill_apply_description", { dir, skill, description });
+}
+
+export function skillIntentRedirect(kind: IntentKind): Promise<string | null> {
+  return invoke("skill_intent_redirect", { kind });
+}
+
+export function skillCheckPersona(text: string): Promise<string[]> {
+  return invoke("skill_check_persona", { text });
+}
+
+export function skillSuggestName(title: string): Promise<string> {
+  return invoke("skill_suggest_name", { title });
+}
+
+export function skillDraftDescription(
+  configDir: string | null,
+  input: DraftInput,
+): Promise<string> {
+  return invoke("skill_draft_description", { configDir, input });
+}
+
+export function skillDraftBody(
+  configDir: string | null,
+  input: DraftInput,
+): Promise<string> {
+  return invoke("skill_draft_body", { configDir, input });
+}
+
+export function skillRedundancyCheck(
+  configDir: string | null,
+  name: string,
+  description: string,
+): Promise<Redundancy> {
+  return invoke("skill_redundancy_check", { configDir, name, description });
+}
+
+export function skillSuggestScript(
+  configDir: string | null,
+  body: string,
+): Promise<ScriptSuggestion | null> {
+  return invoke("skill_suggest_script", { configDir, body });
+}
+
+export function skillScaffold(
+  parentDir: string,
+  spec: SkillSpec,
+): Promise<ScaffoldResult> {
+  return invoke("skill_scaffold", { parentDir, spec });
 }
 
 /** Subscribe to dashboard summaries; resolves with the current full list. */

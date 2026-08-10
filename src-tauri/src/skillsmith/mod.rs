@@ -4,6 +4,7 @@
 
 pub mod diagnostics;
 pub mod eval;
+pub mod generate;
 pub mod validate;
 
 pub use diagnostics::{Diagnostic, Severity, ValidationReport};

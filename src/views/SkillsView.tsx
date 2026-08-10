@@ -16,29 +16,39 @@ import * as ipc from "@/lib/ipc";
 import type { Diagnostic } from "@/lib/generated/Diagnostic";
 import type { ValidationReport } from "@/lib/generated/ValidationReport";
 import { SkillsEval } from "./SkillsEval";
+import { SkillsNew } from "./SkillsNew";
+
+const TABS = { new: "New skill", validate: "Validate", eval: "Trigger eval" } as const;
+type Tab = keyof typeof TABS;
 
 export function SkillsView() {
-  const [tab, setTab] = useState<"validate" | "eval">("validate");
+  const [tab, setTab] = useState<Tab>("new");
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex shrink-0 items-center gap-1 border-b border-border-subtle px-3 py-1.5">
-        {(["validate", "eval"] as const).map((t) => (
+        {(Object.keys(TABS) as Tab[]).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
             className={cn(
-              "rounded-md px-2.5 py-1 text-xs font-medium capitalize",
+              "rounded-md px-2.5 py-1 text-xs font-medium",
               tab === t
                 ? "bg-elevated text-fg"
                 : "text-fg-secondary hover:bg-hover hover:text-fg",
             )}
           >
-            {t === "eval" ? "Trigger eval" : "Validate"}
+            {TABS[t]}
           </button>
         ))}
       </div>
-      {tab === "validate" ? <ValidatePanel /> : <SkillsEval />}
+      {tab === "new" ? (
+        <SkillsNew />
+      ) : tab === "validate" ? (
+        <ValidatePanel />
+      ) : (
+        <SkillsEval />
+      )}
     </div>
   );
 }
