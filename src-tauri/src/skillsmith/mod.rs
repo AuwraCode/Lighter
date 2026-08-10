@@ -3,6 +3,7 @@
 //! the trigger eval and generator build on top of it.
 
 pub mod diagnostics;
+pub mod eval;
 pub mod validate;
 
 pub use diagnostics::{Diagnostic, Severity, ValidationReport};

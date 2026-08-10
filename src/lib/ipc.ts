@@ -9,6 +9,10 @@ import type { SessionSnapshot } from "./generated/SessionSnapshot";
 import type { SessionSummary } from "./generated/SessionSummary";
 import type { TranscriptItem } from "./generated/TranscriptItem";
 import type { ValidationReport } from "./generated/ValidationReport";
+import type { SkillMeta } from "./generated/SkillMeta";
+import type { TriggerSet } from "./generated/TriggerSet";
+import type { EvalReport } from "./generated/EvalReport";
+import type { DescriptionFix } from "./generated/DescriptionFix";
 
 export type BatchHandler = (batch: Batch) => void;
 
@@ -86,6 +90,52 @@ export function skillValidate(
   strict: boolean,
 ): Promise<ValidationReport> {
   return invoke("skill_validate", { path, strict });
+}
+
+export function skillModelKind(configDir: string | null): Promise<string> {
+  return invoke("skill_model_kind", { configDir });
+}
+
+export function skillBuildCatalog(dir: string): Promise<SkillMeta[]> {
+  return invoke("skill_build_catalog", { dir });
+}
+
+export function skillLoadTestset(dir: string): Promise<TriggerSet> {
+  return invoke("skill_load_testset", { dir });
+}
+
+export function skillSaveTestset(dir: string, testset: TriggerSet): Promise<void> {
+  return invoke("skill_save_testset", { dir, testset });
+}
+
+export function skillGenerateTestset(
+  dir: string,
+  configDir: string | null,
+): Promise<TriggerSet> {
+  return invoke("skill_generate_testset", { dir, configDir });
+}
+
+export function skillRunEval(
+  dir: string,
+  configDir: string | null,
+): Promise<EvalReport> {
+  return invoke("skill_run_eval", { dir, configDir });
+}
+
+export function skillProposeFix(
+  dir: string,
+  skill: string,
+  configDir: string | null,
+): Promise<DescriptionFix> {
+  return invoke("skill_propose_fix", { dir, skill, configDir });
+}
+
+export function skillApplyDescription(
+  dir: string,
+  skill: string,
+  description: string,
+): Promise<ValidationReport> {
+  return invoke("skill_apply_description", { dir, skill, description });
 }
 
 /** Subscribe to dashboard summaries; resolves with the current full list. */

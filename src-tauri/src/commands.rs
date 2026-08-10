@@ -331,6 +331,97 @@ pub async fn skill_validate(
     .map_err(|e| Error::Control(e.to_string()))
 }
 
+use crate::skillsmith::eval::catalog::SkillMeta;
+use crate::skillsmith::eval::report::EvalReport;
+use crate::skillsmith::eval::run::{self, DescriptionFix};
+use crate::skillsmith::eval::testset::TriggerSet;
+use crate::skillsmith::eval::{build_catalog, model::Model};
+
+/// Which model backend the eval will use for this account (api | cli).
+#[tauri::command]
+pub fn skill_model_kind(config_dir: Option<String>) -> String {
+    Model::detect(config_dir).kind().to_string()
+}
+
+#[tauri::command]
+pub async fn skill_build_catalog(dir: String) -> Vec<SkillMeta> {
+    tauri::async_runtime::spawn_blocking(move || build_catalog(std::path::Path::new(&dir)))
+        .await
+        .unwrap_or_default()
+}
+
+#[tauri::command]
+pub async fn skill_load_testset(dir: String) -> TriggerSet {
+    tauri::async_runtime::spawn_blocking(move || {
+        TriggerSet::load(&run::testset_path(std::path::Path::new(&dir)))
+    })
+    .await
+    .unwrap_or_default()
+}
+
+#[tauri::command]
+pub async fn skill_save_testset(dir: String, testset: TriggerSet) -> Result<()> {
+    tauri::async_runtime::spawn_blocking(move || {
+        testset
+            .save(&run::testset_path(std::path::Path::new(&dir)))
+            .map_err(|e| Error::Control(e.to_string()))
+    })
+    .await
+    .map_err(|e| Error::Control(e.to_string()))?
+}
+
+#[tauri::command]
+pub async fn skill_generate_testset(
+    dir: String,
+    config_dir: Option<String>,
+) -> Result<TriggerSet> {
+    let model = Model::detect(config_dir);
+    run::generate_testset(std::path::Path::new(&dir), &model).await
+}
+
+#[tauri::command]
+pub async fn skill_run_eval(dir: String, config_dir: Option<String>) -> Result<EvalReport> {
+    let path = std::path::PathBuf::from(&dir);
+    let testset = TriggerSet::load(&run::testset_path(&path));
+    if testset.cases.is_empty() {
+        return Err(Error::InvalidInput(
+            "no test set yet — generate one first".into(),
+        ));
+    }
+    let model = Model::detect(config_dir);
+    run::run_eval(&path, &testset, &model).await
+}
+
+#[tauri::command]
+pub async fn skill_propose_fix(
+    dir: String,
+    skill: String,
+    config_dir: Option<String>,
+) -> Result<DescriptionFix> {
+    let path = std::path::PathBuf::from(&dir);
+    let testset = TriggerSet::load(&run::testset_path(&path));
+    if testset.cases.is_empty() {
+        return Err(Error::InvalidInput("no test set to evaluate against".into()));
+    }
+    let model = Model::detect(config_dir);
+    run::propose_fix(&path, &skill, &testset, &model).await
+}
+
+#[tauri::command]
+pub async fn skill_apply_description(
+    dir: String,
+    skill: String,
+    description: String,
+) -> Result<crate::skillsmith::ValidationReport> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let d = std::path::Path::new(&dir);
+        let skill_dir = run::apply_description(d, &skill, &description)?;
+        Ok(crate::skillsmith::validate_skill(&skill_dir))
+    })
+    .await
+    .map_err(|e| Error::Control(e.to_string()))?
+}
+
 /// Manually (re)provision the configured skill plugins for an account now.
 #[tauri::command]
 pub async fn install_skill_plugins(

@@ -192,6 +192,30 @@ pub fn validate_skill_with(skill_dir: &Path, opts: ValidateOptions) -> Validatio
 
 // ---------------------------------------------------------------------------
 
+/// Best-effort extraction of (name, description) from a skill dir — the ONLY
+/// two fields the router ever sees. Returns None if unparseable.
+pub fn parse_meta(skill_dir: &Path) -> Option<(String, String)> {
+    let (skill_file, _) = locate_skill_file(skill_dir)?;
+    let bytes = std::fs::read(&skill_file).ok()?;
+    let content = if bytes.starts_with(&[0xEF, 0xBB, 0xBF]) {
+        &bytes[3..]
+    } else {
+        &bytes[..]
+    };
+    let text = String::from_utf8_lossy(content).replace('\r', "");
+    let lines: Vec<&str> = text.split('\n').collect();
+    if lines.first().copied() != Some("---") {
+        return None;
+    }
+    let close = lines.iter().enumerate().skip(1).find(|(_, l)| **l == "---")?;
+    let yaml_text = lines[1..close.0].join("\n");
+    let value: serde_yaml::Value = serde_yaml::from_str(&yaml_text).ok()?;
+    let map = value.as_mapping()?;
+    let name = map.get("name")?.as_str()?.to_string();
+    let description = map.get("description")?.as_str()?.to_string();
+    Some((name, description))
+}
+
 fn locate_skill_file(dir: &Path) -> Option<(PathBuf, String)> {
     // Scan real directory entries so the case is authoritative — a constructed
     // `dir.join("SKILL.md")` matches skill.md on case-insensitive filesystems

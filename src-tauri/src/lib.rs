@@ -85,6 +85,14 @@ pub fn run() {
             commands::skill_plugins_info,
             commands::install_skill_plugins,
             commands::skill_validate,
+            commands::skill_model_kind,
+            commands::skill_build_catalog,
+            commands::skill_load_testset,
+            commands::skill_save_testset,
+            commands::skill_generate_testset,
+            commands::skill_run_eval,
+            commands::skill_propose_fix,
+            commands::skill_apply_description,
         ])
         .on_window_event(|window, event| {
             // Closing the window gracefully stops every session first so CLIs
