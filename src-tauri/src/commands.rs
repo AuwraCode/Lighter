@@ -517,6 +517,77 @@ pub async fn install_skill_plugins(
     .map_err(|e| Error::Control(e.to_string()))
 }
 
+// ---------------------------------------------------------------------------
+// mcp — browse the registry and install servers per account
+
+/// One page of the MCP registry, optionally filtered by `query` and continued
+/// from `cursor`.
+#[tauri::command]
+pub async fn mcp_search(
+    query: Option<String>,
+    cursor: Option<String>,
+) -> Result<crate::mcp::CatalogPage> {
+    crate::mcp::fetch(query.as_deref(), cursor.as_deref(), 50).await
+}
+
+/// MCP servers currently configured for an account (+ a project dir so
+/// project-scope `.mcp.json` servers show up).
+#[tauri::command]
+pub async fn mcp_installed(
+    config_dir: Option<String>,
+    project_dir: Option<String>,
+) -> Vec<crate::mcp::InstalledMcp> {
+    tauri::async_runtime::spawn_blocking(move || {
+        crate::mcp::manage::list_installed(config_dir.as_deref(), project_dir.as_deref())
+    })
+    .await
+    .unwrap_or_default()
+}
+
+/// Install a server via `claude mcp add`. `values` fills the entry's declared
+/// env vars / headers; required-but-missing is rejected before spawning.
+#[tauri::command]
+pub async fn mcp_install(
+    config_dir: Option<String>,
+    project_dir: Option<String>,
+    scope: String,
+    alias: String,
+    install: crate::mcp::McpInstall,
+    values: std::collections::HashMap<String, String>,
+) -> Result<String> {
+    let args = crate::mcp::build_add_args(&alias, &install, &scope, &values)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        crate::mcp::manage::install(config_dir.as_deref(), project_dir.as_deref(), &args)
+    })
+    .await
+    .map_err(|e| Error::Control(e.to_string()))?
+}
+
+#[tauri::command]
+pub async fn mcp_remove(
+    config_dir: Option<String>,
+    project_dir: Option<String>,
+    scope: Option<String>,
+    name: String,
+) -> Result<String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        crate::mcp::manage::remove(
+            config_dir.as_deref(),
+            project_dir.as_deref(),
+            scope.as_deref(),
+            &name,
+        )
+    })
+    .await
+    .map_err(|e| Error::Control(e.to_string()))?
+}
+
+/// Open a console running `claude mcp login <name>` for OAuth/browser auth.
+#[tauri::command]
+pub fn mcp_login_terminal(config_dir: Option<String>, name: String) -> Result<()> {
+    crate::mcp::manage::open_login_terminal(config_dir.as_deref(), &name)
+}
+
 /// The CLI version the protocol fixtures were captured against.
 pub const TESTED_CLI_VERSION: &str = "2.1.226";
 

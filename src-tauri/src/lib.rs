@@ -1,6 +1,7 @@
 pub mod commands;
 pub mod error;
 pub mod history;
+pub mod mcp;
 pub mod persistence;
 pub mod presets;
 pub mod profiles;
@@ -102,6 +103,11 @@ pub fn run() {
             commands::skill_redundancy_check,
             commands::skill_suggest_script,
             commands::skill_scaffold,
+            commands::mcp_search,
+            commands::mcp_installed,
+            commands::mcp_install,
+            commands::mcp_remove,
+            commands::mcp_login_terminal,
         ])
         .on_window_event(|window, event| {
             // Closing the window gracefully stops every session first so CLIs

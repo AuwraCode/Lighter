@@ -2,6 +2,7 @@ import {
   CircleStop,
   Columns2,
   LayoutGrid,
+  Plug,
   Plus,
   Settings,
   Trash2,
@@ -15,6 +16,7 @@ import { openSettingsDialog } from "@/stores/settings";
 import { dropSessionStore } from "@/stores/session";
 import {
   focusSession,
+  openMcp,
   openNewSession,
   openSkills,
   openWorkspace,
@@ -78,6 +80,18 @@ export function Sidebar() {
       >
         <Wand2 size={14} />
         Skills
+      </button>
+      <button
+        onClick={openMcp}
+        className={cn(
+          "mx-2 mt-1 flex items-center gap-2 rounded-md px-2.5 py-1.5 text-xs font-medium",
+          view === "mcp"
+            ? "bg-elevated text-fg"
+            : "text-fg-secondary hover:bg-hover hover:text-fg",
+        )}
+      >
+        <Plug size={14} />
+        MCP
       </button>
 
       <div className="mt-3 flex items-center justify-between px-4">

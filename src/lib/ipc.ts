@@ -21,6 +21,9 @@ import type { SkillSpec } from "./generated/SkillSpec";
 import type { ScaffoldResult } from "./generated/ScaffoldResult";
 import type { SkillPluginInfo } from "./generated/SkillPluginInfo";
 import type { LocalSkill } from "./generated/LocalSkill";
+import type { CatalogPage } from "./generated/CatalogPage";
+import type { McpInstall } from "./generated/McpInstall";
+import type { InstalledMcp } from "./generated/InstalledMcp";
 
 export type BatchHandler = (batch: Batch) => void;
 
@@ -214,6 +217,47 @@ export function skillScaffold(
 }
 
 /** Subscribe to dashboard summaries; resolves with the current full list. */
+export function mcpSearch(
+  query: string | null,
+  cursor: string | null,
+): Promise<CatalogPage> {
+  return invoke("mcp_search", { query, cursor });
+}
+
+export function mcpInstalled(
+  configDir: string | null,
+  projectDir: string | null,
+): Promise<InstalledMcp[]> {
+  return invoke("mcp_installed", { configDir, projectDir });
+}
+
+export function mcpInstall(p: {
+  configDir: string | null;
+  projectDir: string | null;
+  scope: string;
+  alias: string;
+  install: McpInstall;
+  values: Record<string, string>;
+}): Promise<string> {
+  return invoke("mcp_install", p);
+}
+
+export function mcpRemove(p: {
+  configDir: string | null;
+  projectDir: string | null;
+  scope: string | null;
+  name: string;
+}): Promise<string> {
+  return invoke("mcp_remove", p);
+}
+
+export function mcpLoginTerminal(
+  configDir: string | null,
+  name: string,
+): Promise<void> {
+  return invoke("mcp_login_terminal", { configDir, name });
+}
+
 export function attachRegistry(
   onBatch: (batch: RegistryBatch) => void,
 ): Promise<SessionSummary[]> {

@@ -13,6 +13,7 @@ import { CommandPalette } from "@/components/CommandPalette";
 import { Dashboard } from "@/views/Dashboard";
 import { Workspace } from "@/views/Workspace";
 import { SkillsView } from "@/views/SkillsView";
+import { McpView } from "@/views/McpView";
 import { loadPresets } from "@/stores/presets";
 import { loadProfiles } from "@/stores/profiles";
 import { loadSettings } from "@/stores/settings";
@@ -108,6 +109,8 @@ function App() {
             <Workspace />
           ) : view === "skills" ? (
             <SkillsView />
+          ) : view === "mcp" ? (
+            <McpView />
           ) : view === "session" && focusedId ? (
             <SessionView key={focusedId} sessionId={focusedId} />
           ) : (
