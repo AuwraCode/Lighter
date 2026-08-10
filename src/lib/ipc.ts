@@ -8,6 +8,7 @@ import type { SessionRecord } from "./generated/SessionRecord";
 import type { SessionSnapshot } from "./generated/SessionSnapshot";
 import type { SessionSummary } from "./generated/SessionSummary";
 import type { TranscriptItem } from "./generated/TranscriptItem";
+import type { ValidationReport } from "./generated/ValidationReport";
 
 export type BatchHandler = (batch: Batch) => void;
 
@@ -78,6 +79,10 @@ export function listSessions(): Promise<SessionInfo[]> {
  *  view: all pane ids; dashboard: none). */
 export function setVisibleSessions(sessionIds: string[]): Promise<void> {
   return invoke("set_visible_sessions", { sessionIds });
+}
+
+export function skillValidate(path: string): Promise<ValidationReport> {
+  return invoke("skill_validate", { path });
 }
 
 /** Subscribe to dashboard summaries; resolves with the current full list. */

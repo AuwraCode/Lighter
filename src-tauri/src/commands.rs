@@ -311,6 +311,21 @@ pub async fn skill_plugins_info(
         .unwrap_or_default()
 }
 
+// ---------------------------------------------------------------------------
+// skillsmith — authoring / validating skills
+
+/// Deterministically validate a SKILL.md skill directory.
+#[tauri::command]
+pub async fn skill_validate(
+    path: String,
+) -> Result<crate::skillsmith::ValidationReport> {
+    tauri::async_runtime::spawn_blocking(move || {
+        crate::skillsmith::validate_skill(std::path::Path::new(&path))
+    })
+    .await
+    .map_err(|e| Error::Control(e.to_string()))
+}
+
 /// Manually (re)provision the configured skill plugins for an account now.
 #[tauri::command]
 pub async fn install_skill_plugins(

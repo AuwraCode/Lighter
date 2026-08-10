@@ -12,6 +12,7 @@ import { SettingsDialog } from "@/components/SettingsDialog";
 import { CommandPalette } from "@/components/CommandPalette";
 import { Dashboard } from "@/views/Dashboard";
 import { Workspace } from "@/views/Workspace";
+import { SkillsView } from "@/views/SkillsView";
 import { loadPresets } from "@/stores/presets";
 import { loadProfiles } from "@/stores/profiles";
 import { loadSettings } from "@/stores/settings";
@@ -105,6 +106,8 @@ function App() {
         <main className="flex min-h-0 flex-1 flex-col">
           {view === "workspace" ? (
             <Workspace />
+          ) : view === "skills" ? (
+            <SkillsView />
           ) : view === "session" && focusedId ? (
             <SessionView key={focusedId} sessionId={focusedId} />
           ) : (

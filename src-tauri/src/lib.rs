@@ -9,6 +9,7 @@ pub mod records;
 pub mod session;
 pub mod settings;
 pub mod skills;
+pub mod skillsmith;
 pub mod worktree;
 
 use std::sync::Arc;
@@ -83,6 +84,7 @@ pub fn run() {
             commands::save_settings,
             commands::skill_plugins_info,
             commands::install_skill_plugins,
+            commands::skill_validate,
         ])
         .on_window_event(|window, event| {
             // Closing the window gracefully stops every session first so CLIs

@@ -10,7 +10,7 @@ import * as ipc from "@/lib/ipc";
 // Function-level usage only — safe module cycle (registry ↔ workspace).
 import { workspaceSessionIds } from "./workspace";
 
-export type ViewMode = "dashboard" | "session" | "workspace";
+export type ViewMode = "dashboard" | "session" | "workspace" | "skills";
 
 export interface RegistryState {
   ready: boolean;
@@ -90,6 +90,11 @@ export function focusSession(id: string | null) {
 
 export function openWorkspace() {
   registryStore.setState({ view: "workspace" });
+  pushVisibleSessions();
+}
+
+export function openSkills() {
+  registryStore.setState({ view: "skills" });
   pushVisibleSessions();
 }
 

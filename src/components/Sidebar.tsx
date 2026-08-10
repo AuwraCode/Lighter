@@ -1,4 +1,12 @@
-import { CircleStop, Columns2, LayoutGrid, Plus, Settings, Trash2 } from "lucide-react";
+import {
+  CircleStop,
+  Columns2,
+  LayoutGrid,
+  Plus,
+  Settings,
+  Trash2,
+  Wand2,
+} from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/cn";
 import * as ipc from "@/lib/ipc";
@@ -8,6 +16,7 @@ import { dropSessionStore } from "@/stores/session";
 import {
   focusSession,
   openNewSession,
+  openSkills,
   openWorkspace,
   registryStore,
   useRegistry,
@@ -57,6 +66,18 @@ export function Sidebar() {
         <span className={cn("font-mono text-[9px] text-fg-muted", paneCount > 0 && "hidden")}>
           ⌃G
         </span>
+      </button>
+      <button
+        onClick={openSkills}
+        className={cn(
+          "mx-2 mt-1 flex items-center gap-2 rounded-md px-2.5 py-1.5 text-xs font-medium",
+          view === "skills"
+            ? "bg-elevated text-fg"
+            : "text-fg-secondary hover:bg-hover hover:text-fg",
+        )}
+      >
+        <Wand2 size={14} />
+        Skills
       </button>
 
       <div className="mt-3 flex items-center justify-between px-4">
