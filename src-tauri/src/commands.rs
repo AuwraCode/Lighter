@@ -314,13 +314,18 @@ pub async fn skill_plugins_info(
 // ---------------------------------------------------------------------------
 // skillsmith — authoring / validating skills
 
-/// Deterministically validate a SKILL.md skill directory.
+/// Deterministically validate a SKILL.md skill directory. `strict` escalates
+/// body-size warnings to errors for a hard gate.
 #[tauri::command]
 pub async fn skill_validate(
     path: String,
+    strict: bool,
 ) -> Result<crate::skillsmith::ValidationReport> {
     tauri::async_runtime::spawn_blocking(move || {
-        crate::skillsmith::validate_skill(std::path::Path::new(&path))
+        crate::skillsmith::validate_skill_with(
+            std::path::Path::new(&path),
+            crate::skillsmith::ValidateOptions { strict },
+        )
     })
     .await
     .map_err(|e| Error::Control(e.to_string()))

@@ -241,8 +241,8 @@ fn validator_matches_fixtures() {
             expected: &["REF_UNREFERENCED"],
         },
         Case {
-            // Unreferenced scripts/ file is only a warning (helpers, module
-            // imports), and __init__.py is exempt entirely.
+            // A truly dead script (no body ref, not imported) is a hard error;
+            // __init__.py is exempt.
             folder: "orphan-script",
             files: vec![
                 f("SKILL.md", skill_md("orphan-script", "x. use when x.", "body")),
@@ -250,6 +250,20 @@ fn validator_matches_fixtures() {
                 f("scripts/__init__.py", ""),
             ],
             expected: &["REF_UNREFERENCED"],
+        },
+        Case {
+            // A helper reachable via import from a referenced entry point is
+            // NOT flagged — the import graph is traced.
+            folder: "reachable-script",
+            files: vec![
+                f(
+                    "SKILL.md",
+                    skill_md("reachable-script", "x. use when x.", "Run scripts/main.py to do it."),
+                ),
+                f("scripts/main.py", "import helper\nhelper.go()\n"),
+                f("scripts/helper.py", "def go(): pass\n"),
+            ],
+            expected: &[],
         },
         Case {
             // Python module notation counts as a reference — no false positive.
@@ -305,13 +319,40 @@ fn ok_flag_reflects_error_severity() {
     let report = validate_skill(&dir2);
     assert!(report.ok, "warnings must not flip ok to false: {:?}", report.diagnostics);
 
-    // An unreferenced script is a warning only — the skill still loads.
+    // A script referenced from the body is fine; a dead one is an error.
     let dir3 = root.join("script-skill");
     std::fs::create_dir_all(dir3.join("scripts")).unwrap();
-    std::fs::write(dir3.join("SKILL.md"), skill_md("script-skill", "x. use when x.", "body")).unwrap();
+    std::fs::write(
+        dir3.join("SKILL.md"),
+        skill_md("script-skill", "x. use when x.", "Run scripts/helper.py."),
+    )
+    .unwrap();
     std::fs::write(dir3.join("scripts").join("helper.py"), "x=1").unwrap();
     assert!(validate_skill(&dir3).ok);
 
+    let dir4 = root.join("dead-script-skill");
+    std::fs::create_dir_all(dir4.join("scripts")).unwrap();
+    std::fs::write(dir4.join("SKILL.md"), skill_md("dead-script-skill", "x. use when x.", "body")).unwrap();
+    std::fs::write(dir4.join("scripts").join("dead.py"), "x=1").unwrap();
+    assert!(!validate_skill(&dir4).ok, "a dead script must fail validation");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn strict_escalates_body_warnings_to_errors() {
+    use lighter_lib::skillsmith::{validate_skill_with, ValidateOptions};
+    let root = std::env::temp_dir().join(format!("skillsmith-strict-{}", uuid::Uuid::new_v4()));
+    let dir = root.join("big-body");
+    std::fs::create_dir_all(&dir).unwrap();
+    let body = (0..520).map(|i| format!("line {i}")).collect::<Vec<_>>().join("\n");
+    std::fs::write(dir.join("SKILL.md"), skill_md("big-body", "x. use when x.", &body)).unwrap();
+
+    assert!(validate_skill(&dir).ok, "lenient: long body is a warning");
+    assert!(
+        !validate_skill_with(&dir, ValidateOptions { strict: true }).ok,
+        "strict: long body is an error"
+    );
     let _ = std::fs::remove_dir_all(&root);
 }
 

@@ -6,4 +6,4 @@ pub mod diagnostics;
 pub mod validate;
 
 pub use diagnostics::{Diagnostic, Severity, ValidationReport};
-pub use validate::validate_skill;
+pub use validate::{validate_skill, validate_skill_with, ValidateOptions};

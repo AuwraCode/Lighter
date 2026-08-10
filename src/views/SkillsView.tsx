@@ -19,29 +19,33 @@ import type { ValidationReport } from "@/lib/generated/ValidationReport";
 export function SkillsView() {
   const [dir, setDir] = useState<string | null>(null);
   const [report, setReport] = useState<ValidationReport | null>(null);
+  const [strict, setStrict] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const validate = useCallback(async (path: string) => {
-    setBusy(true);
-    setError(null);
-    try {
-      setReport(await ipc.skillValidate(path));
-    } catch (e) {
-      setError(String(e));
-      setReport(null);
-    } finally {
-      setBusy(false);
-    }
-  }, []);
+  const validate = useCallback(
+    async (path: string, strictMode: boolean) => {
+      setBusy(true);
+      setError(null);
+      try {
+        setReport(await ipc.skillValidate(path, strictMode));
+      } catch (e) {
+        setError(String(e));
+        setReport(null);
+      } finally {
+        setBusy(false);
+      }
+    },
+    [],
+  );
 
   const pick = useCallback(async () => {
     const picked = await openFolder({ directory: true });
     if (typeof picked === "string") {
       setDir(picked);
-      void validate(picked);
+      void validate(picked, strict);
     }
-  }, [validate]);
+  }, [validate, strict]);
 
   const errors = report?.diagnostics.filter((d) => d.severity === "Error") ?? [];
   const warnings = report?.diagnostics.filter((d) => d.severity === "Warning") ?? [];
@@ -72,8 +76,23 @@ export function SkillsView() {
               <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-fg-muted">
                 {dir}
               </span>
+              <label
+                className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 text-[11px] text-fg-secondary"
+                title="Treat body-size limits (500 lines / ~5000 tokens) as errors"
+              >
+                <input
+                  type="checkbox"
+                  checked={strict}
+                  onChange={(e) => {
+                    setStrict(e.target.checked);
+                    if (dir) void validate(dir, e.target.checked);
+                  }}
+                  className="accent-accent"
+                />
+                Strict
+              </label>
               <button
-                onClick={() => void validate(dir)}
+                onClick={() => void validate(dir, strict)}
                 disabled={busy}
                 className="inline-flex items-center gap-1.5 rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-white hover:bg-accent-hover disabled:opacity-50"
               >

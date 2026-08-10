@@ -81,8 +81,11 @@ export function setVisibleSessions(sessionIds: string[]): Promise<void> {
   return invoke("set_visible_sessions", { sessionIds });
 }
 
-export function skillValidate(path: string): Promise<ValidationReport> {
-  return invoke("skill_validate", { path });
+export function skillValidate(
+  path: string,
+  strict: boolean,
+): Promise<ValidationReport> {
+  return invoke("skill_validate", { path, strict });
 }
 
 /** Subscribe to dashboard summaries; resolves with the current full list. */

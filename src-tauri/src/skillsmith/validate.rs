@@ -11,6 +11,7 @@
 //! - Body length limits are WARNINGS: an over-long body still loads, it just
 //!   wastes context. Only load-breaking issues are errors.
 
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
@@ -25,7 +26,19 @@ const BODY_MAX_LINES: usize = 500;
 const BODY_MAX_TOKENS: usize = 5000;
 const REF_DIRS: [&str; 3] = ["references", "scripts", "assets"];
 
+/// Validation knobs. `strict` escalates body-size *warnings* to errors for a
+/// hard CI gate; the spec (and skill-creator itself) call the 500-line /
+/// ~5000-token limits approximate, so they are warnings by default.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct ValidateOptions {
+    pub strict: bool,
+}
+
 pub fn validate_skill(skill_dir: &Path) -> ValidationReport {
+    validate_skill_with(skill_dir, ValidateOptions::default())
+}
+
+pub fn validate_skill_with(skill_dir: &Path, opts: ValidateOptions) -> ValidationReport {
     let mut report = ValidationReport::new(skill_dir.to_string_lossy().to_string());
 
     // 1. Locate the skill file (SKILL.md preferred, skill.md tolerated).
@@ -148,17 +161,24 @@ pub fn validate_skill(skill_dir: &Path) -> ValidationReport {
         }
     }
 
-    // 8. body length (warnings).
+    // 8. body length (warnings, or errors under --strict).
+    let body_diag = |code: &str, msg: String| {
+        if opts.strict {
+            Diagnostic::error(code, msg)
+        } else {
+            Diagnostic::warning(code, msg)
+        }
+    };
     let line_count = body.lines().count();
     if line_count > BODY_MAX_LINES {
-        report.push(Diagnostic::warning(
+        report.push(body_diag(
             BODY_TOO_MANY_LINES,
             format!("body is {line_count} lines (keep under {BODY_MAX_LINES})"),
         ));
     }
     let tokens = estimate_tokens(&body);
     if tokens > BODY_MAX_TOKENS {
-        report.push(Diagnostic::warning(
+        report.push(body_diag(
             BODY_TOO_MANY_TOKENS,
             format!("body is ~{tokens} tokens (keep under ~{BODY_MAX_TOKENS})"),
         ));
@@ -320,6 +340,8 @@ fn validate_name(name: &str, skill_dir: &Path, report: &mut ValidationReport) {
 fn validate_files(skill_dir: &Path, body: &str, report: &mut ValidationReport) {
     let refs = extract_references(body, report);
 
+    // Depth-1 files per bundled dir (too-deep files reported as a side effect).
+    let mut files: HashMap<&str, Vec<String>> = HashMap::new();
     for dir_name in REF_DIRS {
         let dir = skill_dir.join(dir_name);
         if !dir.is_dir() {
@@ -327,49 +349,158 @@ fn validate_files(skill_dir: &Path, body: &str, report: &mut ValidationReport) {
         }
         let mut depth1: Vec<String> = Vec::new();
         collect_files(&dir, dir_name, 1, &mut depth1, report);
-        for rel in depth1 {
-            // __init__.py is a Python package marker — never referenced, not dead.
-            if rel.ends_with("/__init__.py") {
-                continue;
-            }
-            if refs.coverage.iter().any(|r| r == &rel) {
-                continue;
-            }
-            // An unreferenced doc in references/ is genuinely dead (docs are
-            // only reachable via explicit SKILL.md pointers). Scripts and
-            // assets are commonly reached indirectly (module imports, output
-            // templates), so those are warnings, not errors — verified against
-            // the reference skill-creator, which has such helper scripts.
-            if dir_name == "references" {
-                report.push(
-                    Diagnostic::error(
-                        REF_UNREFERENCED,
-                        format!("{rel} is never referenced from the body, so it is dead"),
-                    )
-                    .at(rel),
-                );
-            } else {
-                report.push(
-                    Diagnostic::warning(
-                        REF_UNREFERENCED,
-                        format!("{rel} is never referenced from the body"),
-                    )
-                    .at(rel),
-                );
-            }
+        files.insert(dir_name, depth1);
+    }
+
+    let empty: Vec<String> = Vec::new();
+    let scripts = files.get("scripts").unwrap_or(&empty);
+
+    // A script is LIVE if the body reaches it, directly or transitively through
+    // the import graph. This is the "hard" rule done properly: a truly dead
+    // script is an error, but a helper reachable from a referenced entry point
+    // (import foo / -m scripts.foo / scripts/foo.py) is not falsely flagged.
+    let (reachable, asset_refs_from_scripts) = scripts_reachability(skill_dir, scripts, &refs.coverage);
+
+    // references/: only reachable via explicit SKILL.md pointers.
+    for rel in files.get("references").unwrap_or(&empty) {
+        if !refs.coverage.contains(rel) {
+            report.push(
+                Diagnostic::error(
+                    REF_UNREFERENCED,
+                    format!("{rel} is never referenced from the body, so it is dead"),
+                )
+                .at(rel.clone()),
+            );
         }
     }
 
-    // Dead references: a path is named in the body but the file is absent.
+    // scripts/: dead == unreachable from the body via the import graph.
+    for rel in scripts {
+        if rel.ends_with("/__init__.py") || reachable.contains(rel) {
+            continue;
+        }
+        report.push(
+            Diagnostic::error(
+                REF_UNREFERENCED,
+                format!("{rel} is unreachable from the body (not referenced or imported)"),
+            )
+            .at(rel.clone()),
+        );
+    }
+
+    // assets/: live if referenced from the body or from any live script.
+    for rel in files.get("assets").unwrap_or(&empty) {
+        let live = refs.coverage.contains(rel) || asset_refs_from_scripts.contains(rel);
+        if !live {
+            report.push(
+                Diagnostic::warning(
+                    REF_UNREFERENCED,
+                    format!("{rel} is never referenced from the body or any script"),
+                )
+                .at(rel.clone()),
+            );
+        }
+    }
+
+    // Dead references: a path named in the body but the file is absent.
     for rel in &refs.paths {
-        let path = rel_to_path(skill_dir, rel);
-        if !path.exists() {
+        if !rel_to_path(skill_dir, rel).exists() {
             report.push(
                 Diagnostic::error(REF_DEAD, format!("{rel} is referenced but does not exist"))
                     .at(rel.clone()),
             );
         }
     }
+}
+
+/// BFS the script import graph from body-referenced entry points. Returns the
+/// set of reachable script rel-paths and any assets/ paths referenced from
+/// live scripts.
+fn scripts_reachability(
+    skill_dir: &Path,
+    scripts: &[String],
+    body_coverage: &[String],
+) -> (HashSet<String>, HashSet<String>) {
+    // basename ("foo.py") -> rel, and python stem ("foo") -> rel.
+    let mut by_name: HashMap<String, String> = HashMap::new();
+    let mut by_stem: HashMap<String, String> = HashMap::new();
+    for rel in scripts {
+        if let Some(base) = rel.rsplit('/').next() {
+            by_name.insert(base.to_string(), rel.clone());
+            if let Some(stem) = base.strip_suffix(".py") {
+                by_stem.insert(stem.to_string(), rel.clone());
+            }
+        }
+    }
+
+    let mut reachable: HashSet<String> = HashSet::new();
+    let mut queue: VecDeque<String> = VecDeque::new();
+    for rel in scripts {
+        if body_coverage.contains(rel) {
+            reachable.insert(rel.clone());
+            queue.push_back(rel.clone());
+        }
+    }
+
+    let mut asset_refs: HashSet<String> = HashSet::new();
+    while let Some(cur) = queue.pop_front() {
+        let content = std::fs::read_to_string(rel_to_path(skill_dir, &cur)).unwrap_or_default();
+        for edge in script_edges(&content, &by_name, &by_stem) {
+            if reachable.insert(edge.clone()) {
+                queue.push_back(edge);
+            }
+        }
+        for token in tokenize_paths(&content) {
+            let t = token.replace('\\', "/");
+            if t.starts_with("assets/") {
+                asset_refs.insert(t.trim_end_matches('.').to_string());
+            } else if let Some(base) = t.rsplit('/').next() {
+                // Bare asset filename used inside a script (e.g. "template.html").
+                let candidate = format!("assets/{base}");
+                asset_refs.insert(candidate);
+            }
+        }
+    }
+    (reachable, asset_refs)
+}
+
+/// Sibling scripts referenced from one script's source: path form
+/// (scripts/foo.py, foo.py) and import form (import foo / from scripts.foo …).
+fn script_edges(
+    content: &str,
+    by_name: &HashMap<String, String>,
+    by_stem: &HashMap<String, String>,
+) -> Vec<String> {
+    let mut edges: Vec<String> = Vec::new();
+    let add = |rel: &String, edges: &mut Vec<String>| {
+        if !edges.contains(rel) {
+            edges.push(rel.clone());
+        }
+    };
+
+    // Path form.
+    for token in tokenize_paths(content) {
+        let t = token.replace('\\', "/");
+        if let Some(base) = t.rsplit('/').next() {
+            if let Some(rel) = by_name.get(base) {
+                add(rel, &mut edges);
+            }
+        }
+    }
+
+    // Import form: the word after `import` / `from`, dotted, dots stripped.
+    let words: Vec<&str> = content.split(|c: char| c.is_whitespace()).collect();
+    for pair in words.windows(2) {
+        if pair[0] == "import" || pair[0] == "from" {
+            let module = pair[1].trim_matches(|c: char| c == '.' || c == ',' || c == '(');
+            for segment in module.split('.') {
+                if let Some(rel) = by_stem.get(segment) {
+                    add(rel, &mut edges);
+                }
+            }
+        }
+    }
+    edges
 }
 
 struct References {
