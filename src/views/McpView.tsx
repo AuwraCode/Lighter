@@ -115,7 +115,7 @@ export function McpView() {
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">
-      <div className="mx-auto max-w-3xl p-6">
+      <div className="w-full p-6">
         <div className="mb-1 flex items-center gap-2">
           <Plug size={15} className="text-accent" />
           <h1 className="text-sm font-semibold tracking-tight">MCP servers</h1>
@@ -190,7 +190,7 @@ export function McpView() {
             {projectDir ? " / project" : ""} yet.
           </div>
         ) : (
-          <div className="mb-5 flex flex-col gap-1.5">
+          <div className="mb-5 grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-1.5">
             {installed.map((m) => (
               <div
                 key={m.name}
@@ -234,7 +234,7 @@ export function McpView() {
         <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-fg-muted">
           Browse registry
         </div>
-        <div className="relative mb-3">
+        <div className="relative mb-3 max-w-2xl">
           <Search
             size={13}
             className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-fg-muted"
@@ -264,7 +264,7 @@ export function McpView() {
             No servers match “{query}”.
           </div>
         ) : (
-          <div className="flex flex-col gap-1.5">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(340px,1fr))] items-stretch gap-1.5">
             {entries.map((e) => (
               <EntryRow
                 key={e.name + e.version}
@@ -316,39 +316,39 @@ function EntryRow({
 }) {
   const unsupported = entry.install.kind === "unsupported";
   return (
-    <div className="flex items-start gap-2.5 rounded-lg border border-border bg-surface px-3 py-2">
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <span className="truncate text-xs font-medium text-fg">
-            {entry.display_name}
+    <div className="flex h-full flex-col rounded-lg border border-border bg-surface px-3 py-2">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="min-w-0 truncate text-xs font-medium text-fg">
+          {entry.display_name}
+        </span>
+        <span className="rounded bg-elevated px-1.5 py-0.5 text-[9px] font-medium text-fg-muted">
+          {entry.transport_label}
+        </span>
+        {entry.version && (
+          <span className="font-mono text-[9px] text-fg-muted">v{entry.version}</span>
+        )}
+        {installed && (
+          <span className="rounded bg-success/15 px-1.5 py-0.5 text-[9px] font-medium text-success">
+            installed
           </span>
-          <span className="rounded bg-elevated px-1.5 py-0.5 text-[9px] font-medium text-fg-muted">
-            {entry.transport_label}
-          </span>
-          {entry.version && (
-            <span className="font-mono text-[9px] text-fg-muted">v{entry.version}</span>
-          )}
-          {installed && (
-            <span className="rounded bg-success/15 px-1.5 py-0.5 text-[9px] font-medium text-success">
-              installed
-            </span>
-          )}
-        </div>
-        <div className="truncate font-mono text-[10px] text-fg-muted">{entry.name}</div>
-        {entry.description && (
-          <div className="mt-0.5 line-clamp-2 text-[11px] text-fg-secondary">
-            {entry.description}
-          </div>
         )}
       </div>
-      <button
-        onClick={onInstall}
-        disabled={unsupported}
-        title={unsupported ? "No installable package or remote in this entry" : "Install"}
-        className="inline-flex shrink-0 items-center gap-1 rounded-md bg-accent px-2.5 py-1.5 text-[11px] font-medium text-white hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-40"
-      >
-        <Download size={12} /> Install
-      </button>
+      <div className="truncate font-mono text-[10px] text-fg-muted">{entry.name}</div>
+      {entry.description && (
+        <div className="mt-0.5 line-clamp-2 text-[11px] text-fg-secondary">
+          {entry.description}
+        </div>
+      )}
+      <div className="mt-auto flex justify-end pt-2">
+        <button
+          onClick={onInstall}
+          disabled={unsupported}
+          title={unsupported ? "No installable package or remote in this entry" : "Install"}
+          className="inline-flex items-center gap-1 rounded-md bg-accent px-2.5 py-1.5 text-[11px] font-medium text-white hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <Download size={12} /> Install
+        </button>
+      </div>
     </div>
   );
 }
