@@ -314,6 +314,21 @@ pub async fn skill_plugins_info(
 // ---------------------------------------------------------------------------
 // skillsmith — authoring / validating skills
 
+/// User-scope skills for an account (`<config_dir>/skills`) plus optional
+/// project-scope skills (`<project_dir>/.claude/skills`) — the "what's actually
+/// installed" list for the Skills hub.
+#[tauri::command]
+pub async fn skill_list_local(
+    config_dir: Option<String>,
+    project_dir: Option<String>,
+) -> Vec<crate::skillsmith::LocalSkill> {
+    tauri::async_runtime::spawn_blocking(move || {
+        crate::skillsmith::list_local(config_dir.as_deref(), project_dir.as_deref())
+    })
+    .await
+    .unwrap_or_default()
+}
+
 /// Deterministically validate a SKILL.md skill directory. `strict` escalates
 /// body-size warnings to errors for a hard gate.
 #[tauri::command]

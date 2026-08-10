@@ -84,6 +84,7 @@ pub fn run() {
             commands::save_settings,
             commands::skill_plugins_info,
             commands::install_skill_plugins,
+            commands::skill_list_local,
             commands::skill_validate,
             commands::skill_model_kind,
             commands::skill_build_catalog,

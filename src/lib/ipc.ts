@@ -19,6 +19,8 @@ import type { Redundancy } from "./generated/Redundancy";
 import type { ScriptSuggestion } from "./generated/ScriptSuggestion";
 import type { SkillSpec } from "./generated/SkillSpec";
 import type { ScaffoldResult } from "./generated/ScaffoldResult";
+import type { SkillPluginInfo } from "./generated/SkillPluginInfo";
+import type { LocalSkill } from "./generated/LocalSkill";
 
 export type BatchHandler = (batch: Batch) => void;
 
@@ -183,6 +185,25 @@ export function skillSuggestScript(
   body: string,
 ): Promise<ScriptSuggestion | null> {
   return invoke("skill_suggest_script", { configDir, body });
+}
+
+export function skillListLocal(
+  configDir: string | null,
+  projectDir: string | null,
+): Promise<LocalSkill[]> {
+  return invoke("skill_list_local", { configDir, projectDir });
+}
+
+export function skillPluginsInfo(
+  configDir: string | null,
+): Promise<SkillPluginInfo[]> {
+  return invoke("skill_plugins_info", { configDir });
+}
+
+export function installSkillPlugins(
+  configDir: string | null,
+): Promise<SkillPluginInfo[]> {
+  return invoke("install_skill_plugins", { configDir });
 }
 
 export function skillScaffold(

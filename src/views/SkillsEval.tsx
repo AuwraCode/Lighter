@@ -2,7 +2,7 @@
 // and NOT steal queries meant for the user's other skills? Headline = the
 // cross-skill confusion matrix.
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { open as openFolder } from "@tauri-apps/plugin-dialog";
 import { toast } from "sonner";
 import {
@@ -25,6 +25,7 @@ import type { TriggerCase } from "@/lib/generated/TriggerCase";
 import type { EvalReport } from "@/lib/generated/EvalReport";
 import type { DescriptionFix } from "@/lib/generated/DescriptionFix";
 import { defaultProfile } from "@/stores/profiles";
+import { consumeEvalDir, useSkillsNav } from "@/stores/skillsNav";
 
 const NONE = "∅ none";
 
@@ -66,6 +67,16 @@ export function SkillsEval() {
       void load(picked);
     }
   }, [load]);
+
+  // A skills folder handed over from the Installed hub → load its catalog.
+  const preload = useSkillsNav((s) => s.evalDir);
+  useEffect(() => {
+    if (preload) {
+      setDir(preload);
+      void load(preload);
+      consumeEvalDir();
+    }
+  }, [preload, load]);
 
   const generate = useCallback(async () => {
     if (!dir) return;

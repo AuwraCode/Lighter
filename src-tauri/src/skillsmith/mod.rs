@@ -5,7 +5,9 @@
 pub mod diagnostics;
 pub mod eval;
 pub mod generate;
+pub mod library;
 pub mod validate;
 
 pub use diagnostics::{Diagnostic, Severity, ValidationReport};
+pub use library::{list_local, LocalSkill};
 pub use validate::{validate_skill, validate_skill_with, ValidateOptions};

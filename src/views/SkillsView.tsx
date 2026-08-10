@@ -1,7 +1,7 @@
 // Skillsmith — author, validate and (later) eval Agent Skills from inside
 // Lighter. Phase 1: the deterministic validator.
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { open as openFolder } from "@tauri-apps/plugin-dialog";
 import {
   AlertTriangle,
@@ -17,20 +17,31 @@ import type { Diagnostic } from "@/lib/generated/Diagnostic";
 import type { ValidationReport } from "@/lib/generated/ValidationReport";
 import { SkillsEval } from "./SkillsEval";
 import { SkillsNew } from "./SkillsNew";
+import { SkillsInstalled } from "./SkillsInstalled";
+import {
+  consumeValidateDir,
+  setSkillsTab,
+  useSkillsNav,
+  type SkillsTab,
+} from "@/stores/skillsNav";
 
-const TABS = { new: "New skill", validate: "Validate", eval: "Trigger eval" } as const;
-type Tab = keyof typeof TABS;
+const TABS = {
+  installed: "Installed",
+  new: "New skill",
+  validate: "Validate",
+  eval: "Trigger eval",
+} as const;
 
 export function SkillsView() {
-  const [tab, setTab] = useState<Tab>("new");
+  const tab = useSkillsNav((s) => s.tab);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex shrink-0 items-center gap-1 border-b border-border-subtle px-3 py-1.5">
-        {(Object.keys(TABS) as Tab[]).map((t) => (
+        {(Object.keys(TABS) as SkillsTab[]).map((t) => (
           <button
             key={t}
-            onClick={() => setTab(t)}
+            onClick={() => setSkillsTab(t)}
             className={cn(
               "rounded-md px-2.5 py-1 text-xs font-medium",
               tab === t
@@ -42,7 +53,9 @@ export function SkillsView() {
           </button>
         ))}
       </div>
-      {tab === "new" ? (
+      {tab === "installed" ? (
+        <SkillsInstalled />
+      ) : tab === "new" ? (
         <SkillsNew />
       ) : tab === "validate" ? (
         <ValidatePanel />
@@ -83,6 +96,18 @@ function ValidatePanel() {
       void validate(picked, strict);
     }
   }, [validate, strict]);
+
+  // A skill folder handed over from the Installed hub → load and validate it.
+  const preload = useSkillsNav((s) => s.validateDir);
+  useEffect(() => {
+    if (preload) {
+      setDir(preload);
+      void validate(preload, strict);
+      consumeValidateDir();
+    }
+    // strict intentionally read at pickup time only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preload, validate]);
 
   const errors = report?.diagnostics.filter((d) => d.severity === "Error") ?? [];
   const warnings = report?.diagnostics.filter((d) => d.severity === "Warning") ?? [];
