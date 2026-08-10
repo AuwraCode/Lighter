@@ -235,10 +235,9 @@ export function McpView() {
           Browse registry
         </div>
         <div className="relative mb-3 max-w-2xl">
-          <Search
-            size={13}
-            className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-fg-muted"
-          />
+          <span className="pointer-events-none absolute inset-y-0 left-2.5 flex items-center text-fg-muted">
+            <Search size={13} />
+          </span>
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -246,10 +245,9 @@ export function McpView() {
             className="w-full rounded-md border border-border bg-surface py-2 pl-8 pr-8 text-xs outline-none focus:border-accent"
           />
           {loading && (
-            <Loader2
-              size={13}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 animate-spin text-fg-muted"
-            />
+            <span className="absolute inset-y-0 right-2.5 flex items-center text-fg-muted">
+              <Loader2 size={13} className="animate-spin" />
+            </span>
           )}
         </div>
 
