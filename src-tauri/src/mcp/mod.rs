@@ -5,5 +5,7 @@
 pub mod catalog;
 pub mod manage;
 
-pub use catalog::{fetch, CatalogPage, McpEntry, McpInput, McpInstall};
+pub use catalog::{
+    fetch, fetch_repo_stars, CatalogPage, McpEntry, McpInput, McpInstall, RepoStars,
+};
 pub use manage::{build_add_args, InstalledMcp};

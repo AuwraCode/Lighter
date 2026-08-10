@@ -24,6 +24,7 @@ import type { LocalSkill } from "./generated/LocalSkill";
 import type { CatalogPage } from "./generated/CatalogPage";
 import type { McpInstall } from "./generated/McpInstall";
 import type { InstalledMcp } from "./generated/InstalledMcp";
+import type { RepoStars } from "./generated/RepoStars";
 
 export type BatchHandler = (batch: Batch) => void;
 
@@ -256,6 +257,14 @@ export function mcpLoginTerminal(
   name: string,
 ): Promise<void> {
   return invoke("mcp_login_terminal", { configDir, name });
+}
+
+export function mcpRepoStars(repoUrl: string): Promise<RepoStars | null> {
+  return invoke("mcp_repo_stars", { repoUrl });
+}
+
+export function openExternal(url: string): Promise<void> {
+  return invoke("open_external", { url });
 }
 
 export function attachRegistry(

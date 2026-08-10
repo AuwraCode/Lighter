@@ -588,6 +588,22 @@ pub fn mcp_login_terminal(config_dir: Option<String>, name: String) -> Result<()
     crate::mcp::manage::open_login_terminal(config_dir.as_deref(), &name)
 }
 
+/// GitHub stars for a server's repository — a popularity/trust signal. `None`
+/// if it isn't a GitHub repo or the lookup fails (e.g. rate-limited).
+#[tauri::command]
+pub async fn mcp_repo_stars(repo_url: String) -> Option<crate::mcp::RepoStars> {
+    crate::mcp::fetch_repo_stars(&repo_url).await
+}
+
+/// Open a URL in the user's default browser (e.g. a server's repo page).
+#[tauri::command]
+pub fn open_external(app: tauri::AppHandle, url: String) -> Result<()> {
+    use tauri_plugin_opener::OpenerExt;
+    app.opener()
+        .open_url(url, None::<&str>)
+        .map_err(|e| Error::Control(e.to_string()))
+}
+
 /// The CLI version the protocol fixtures were captured against.
 pub const TESTED_CLI_VERSION: &str = "2.1.226";
 

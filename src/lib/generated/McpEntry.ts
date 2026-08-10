@@ -11,6 +11,19 @@ name: string, display_name: string,
  */
 default_alias: string, description: string, version: string, 
 /**
+ * Who published it, derived from the registry namespace (e.g. `gh:owner`,
+ * `smithery`). A trust-at-a-glance signal.
+ */
+publisher: string, 
+/**
+ * Published under the official Anthropic / modelcontextprotocol namespace.
+ */
+official: boolean, 
+/**
+ * Last-updated date (YYYY-MM-DD) from the registry, if known.
+ */
+updated: string | null, 
+/**
  * Badge text: http / sse / npm / pypi / docker / ?.
  */
 transport_label: string, repository: string | null, install: McpInstall, };

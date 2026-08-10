@@ -108,6 +108,8 @@ pub fn run() {
             commands::mcp_install,
             commands::mcp_remove,
             commands::mcp_login_terminal,
+            commands::mcp_repo_stars,
+            commands::open_external,
         ])
         .on_window_event(|window, event| {
             // Closing the window gracefully stops every session first so CLIs

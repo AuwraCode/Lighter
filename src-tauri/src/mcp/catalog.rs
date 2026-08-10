@@ -61,6 +61,13 @@ pub struct McpEntry {
     pub default_alias: String,
     pub description: String,
     pub version: String,
+    /// Who published it, derived from the registry namespace (e.g. `gh:owner`,
+    /// `smithery`). A trust-at-a-glance signal.
+    pub publisher: String,
+    /// Published under the official Anthropic / modelcontextprotocol namespace.
+    pub official: bool,
+    /// Last-updated date (YYYY-MM-DD) from the registry, if known.
+    pub updated: Option<String>,
     /// Badge text: http / sse / npm / pypi / docker / ?.
     pub transport_label: String,
     pub repository: Option<String>,
@@ -134,9 +141,19 @@ fn normalize_entry(wrapper: &Value) -> Option<McpEntry> {
             .map(String::from)
             .or_else(|| r.as_str().map(String::from))
     });
+    // Registry status lives on the sibling `_meta`, not on `server`.
+    let updated = wrapper
+        .get("_meta")
+        .and_then(|m| m.get("io.modelcontextprotocol.registry/official"))
+        .and_then(|m| get_str(m, &["updatedAt", "publishedAt", "updated_at", "published_at"]))
+        .map(|s| s.chars().take(10).collect::<String>())
+        .filter(|s| !s.is_empty());
     let (install, transport_label) = derive_install(s);
     Some(McpEntry {
         default_alias: slug_alias(&name),
+        publisher: publisher_of(&name),
+        official: is_official(&name),
+        updated,
         name,
         display_name,
         description,
@@ -145,6 +162,23 @@ fn normalize_entry(wrapper: &Value) -> Option<McpEntry> {
         repository,
         install,
     })
+}
+
+/// A friendly publisher label from the registry namespace (the part before
+/// `/`): `io.github.owner` → `gh:owner`, `ai.smithery` → `smithery`.
+fn publisher_of(id: &str) -> String {
+    let ns = id.split('/').next().unwrap_or(id);
+    if let Some(owner) = ns.strip_prefix("io.github.") {
+        format!("gh:{owner}")
+    } else {
+        ns.rsplit('.').next().unwrap_or(ns).to_string()
+    }
+}
+
+/// Published under the Anthropic / MCP official namespace.
+fn is_official(id: &str) -> bool {
+    let ns = id.split('/').next().unwrap_or(id);
+    ns == "io.modelcontextprotocol" || ns.starts_with("com.anthropic")
 }
 
 /// Prefer a local package (fully non-interactive) over a remote; fall back to
@@ -303,6 +337,55 @@ fn slug_alias(id: &str) -> String {
     }
 }
 
+/// GitHub popularity for a server's repo — a lightweight "rating" so users can
+/// vet a server before installing. `None` on any failure (rate limit, not
+/// found, non-GitHub host) so the UI simply omits it.
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export)]
+pub struct RepoStars {
+    pub stars: i64,
+    pub archived: bool,
+    pub url: String,
+}
+
+pub async fn fetch_repo_stars(repo_url: &str) -> Option<RepoStars> {
+    let (owner, repo) = parse_github(repo_url)?;
+    let api = format!("https://api.github.com/repos/{owner}/{repo}");
+    let resp = reqwest::Client::new()
+        .get(&api)
+        .header("user-agent", "Lighter-MCP-Browser")
+        .header("accept", "application/vnd.github+json")
+        .send()
+        .await
+        .ok()?;
+    if !resp.status().is_success() {
+        return None;
+    }
+    let v: Value = resp.json().await.ok()?;
+    Some(RepoStars {
+        stars: v.get("stargazers_count").and_then(Value::as_i64).unwrap_or(0),
+        archived: v.get("archived").and_then(Value::as_bool).unwrap_or(false),
+        url: v
+            .get("html_url")
+            .and_then(Value::as_str)
+            .unwrap_or(repo_url)
+            .to_string(),
+    })
+}
+
+/// Pull (owner, repo) from a GitHub URL, tolerating `.git`, deeper paths and a
+/// trailing slash. `None` for non-GitHub URLs.
+fn parse_github(url: &str) -> Option<(String, String)> {
+    let rest = url.split("github.com/").nth(1)?;
+    let mut parts = rest.trim_end_matches('/').split('/');
+    let owner = parts.next()?.to_string();
+    let repo = parts.next()?.trim_end_matches(".git").to_string();
+    if owner.is_empty() || repo.is_empty() {
+        return None;
+    }
+    Some((owner, repo))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -402,5 +485,44 @@ mod tests {
     fn slug_alias_is_clean() {
         assert_eq!(slug_alias("io.github.Owner/My_Cool.Server"), "my-cool-server");
         assert_eq!(slug_alias("ac.inference.sh/mcp"), "mcp");
+    }
+
+    #[test]
+    fn publisher_and_official() {
+        assert_eq!(publisher_of("io.github.Owner/repo"), "gh:Owner");
+        assert_eq!(publisher_of("ai.smithery/foo"), "smithery");
+        assert!(is_official("io.modelcontextprotocol/everything"));
+        assert!(!is_official("ai.smithery/foo"));
+    }
+
+    #[test]
+    fn parses_github_urls() {
+        assert_eq!(
+            parse_github("https://github.com/acme/weather-mcp"),
+            Some(("acme".into(), "weather-mcp".into()))
+        );
+        assert_eq!(
+            parse_github("https://github.com/acme/weather.git"),
+            Some(("acme".into(), "weather".into()))
+        );
+        assert_eq!(
+            parse_github("https://github.com/acme/weather/tree/main"),
+            Some(("acme".into(), "weather".into()))
+        );
+        assert_eq!(parse_github("https://gitlab.com/acme/x"), None);
+    }
+
+    #[test]
+    fn reads_updated_from_meta() {
+        let body = json!({
+            "servers": [{
+                "server": { "name": "io.github.a/b", "remotes": [{ "type": "http", "url": "https://x/y" }] },
+                "_meta": { "io.modelcontextprotocol.registry/official": { "updatedAt": "2026-05-01T12:00:00Z", "status": "active" } }
+            }],
+            "metadata": {}
+        });
+        let page = parse_page(&body);
+        assert_eq!(page.entries[0].updated.as_deref(), Some("2026-05-01"));
+        assert_eq!(page.entries[0].publisher, "gh:a");
     }
 }

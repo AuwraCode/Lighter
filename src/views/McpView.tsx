@@ -8,12 +8,15 @@ import { open as openFolder } from "@tauri-apps/plugin-dialog";
 import { toast } from "sonner";
 import {
   Download,
+  ExternalLink,
   FolderOpen,
   Loader2,
   LogIn,
   Plug,
   RotateCcw,
   Search,
+  ShieldCheck,
+  Star,
   Trash2,
   X,
 } from "lucide-react";
@@ -22,6 +25,7 @@ import * as ipc from "@/lib/ipc";
 import type { McpEntry } from "@/lib/generated/McpEntry";
 import type { McpInstall } from "@/lib/generated/McpInstall";
 import type { InstalledMcp } from "@/lib/generated/InstalledMcp";
+import type { RepoStars } from "@/lib/generated/RepoStars";
 import { useProfiles } from "@/stores/profiles";
 
 const STATUS_DOT: Record<string, string> = {
@@ -234,20 +238,16 @@ export function McpView() {
         <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-fg-muted">
           Browse registry
         </div>
-        <div className="relative mb-3 max-w-2xl">
-          <span className="pointer-events-none absolute inset-y-0 left-2.5 flex items-center text-fg-muted">
-            <Search size={13} />
-          </span>
+        <div className="mb-3 flex max-w-2xl items-center gap-2 rounded-md border border-border bg-surface px-2.5 focus-within:border-accent">
+          <Search size={13} className="shrink-0 text-fg-muted" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search MCP servers (e.g. github, postgres, filesystem)…"
-            className="w-full rounded-md border border-border bg-surface py-2 pl-8 pr-8 text-xs outline-none focus:border-accent"
+            className="min-w-0 flex-1 bg-transparent py-2 text-xs outline-none"
           />
           {loading && (
-            <span className="absolute inset-y-0 right-2.5 flex items-center text-fg-muted">
-              <Loader2 size={13} className="animate-spin" />
-            </span>
+            <Loader2 size={13} className="shrink-0 animate-spin text-fg-muted" />
           )}
         </div>
 
@@ -319,6 +319,11 @@ function EntryRow({
         <span className="min-w-0 truncate text-xs font-medium text-fg">
           {entry.display_name}
         </span>
+        {entry.official && (
+          <span className="inline-flex items-center gap-0.5 rounded bg-accent/15 px-1.5 py-0.5 text-[9px] font-medium text-accent">
+            <ShieldCheck size={9} /> official
+          </span>
+        )}
         <span className="rounded bg-elevated px-1.5 py-0.5 text-[9px] font-medium text-fg-muted">
           {entry.transport_label}
         </span>
@@ -337,12 +342,24 @@ function EntryRow({
           {entry.description}
         </div>
       )}
-      <div className="mt-auto flex justify-end pt-2">
+      <div className="mt-auto flex items-center justify-between gap-2 pt-2">
+        <div className="flex min-w-0 items-center gap-2 text-[10px] text-fg-muted">
+          <span className="truncate">by {entry.publisher}</span>
+          {entry.repository && (
+            <button
+              onClick={() => void ipc.openExternal(entry.repository as string)}
+              title={entry.repository}
+              className="inline-flex shrink-0 items-center gap-0.5 hover:text-fg"
+            >
+              <ExternalLink size={10} /> repo
+            </button>
+          )}
+        </div>
         <button
           onClick={onInstall}
           disabled={unsupported}
           title={unsupported ? "No installable package or remote in this entry" : "Install"}
-          className="inline-flex items-center gap-1 rounded-md bg-accent px-2.5 py-1.5 text-[11px] font-medium text-white hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-40"
+          className="inline-flex shrink-0 items-center gap-1 rounded-md bg-accent px-2.5 py-1.5 text-[11px] font-medium text-white hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-40"
         >
           <Download size={12} /> Install
         </button>
@@ -391,6 +408,24 @@ function InstallDialog({
     ),
   );
   const [busy, setBusy] = useState(false);
+  const [stars, setStars] = useState<RepoStars | null | "loading">(
+    entry.repository ? "loading" : null,
+  );
+
+  useEffect(() => {
+    if (!entry.repository) return;
+    let live = true;
+    ipc
+      .mcpRepoStars(entry.repository)
+      .then((s) => live && setStars(s))
+      .catch(() => live && setStars(null));
+    return () => {
+      live = false;
+    };
+  }, [entry.repository]);
+
+  const starsObj = typeof stars === "object" ? stars : null;
+  const loadingStars = stars === "loading";
 
   const needsProject = scope !== "user";
   const missingRequired = inputs.some(
@@ -448,6 +483,46 @@ function InstallDialog({
         </div>
 
         <div className="flex flex-col gap-3 text-xs">
+          <div className="rounded-md border border-border-subtle bg-surface px-2.5 py-2">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
+              {entry.official ? (
+                <span className="inline-flex items-center gap-1 font-medium text-accent">
+                  <ShieldCheck size={12} /> official
+                </span>
+              ) : (
+                <span className="text-fg-muted">by {entry.publisher}</span>
+              )}
+              {loadingStars ? (
+                <span className="inline-flex items-center gap-1 text-fg-muted">
+                  <Loader2 size={11} className="animate-spin" /> stars…
+                </span>
+              ) : starsObj ? (
+                <span className="inline-flex items-center gap-1 text-fg">
+                  <Star size={11} className="text-warning" />
+                  {Number(starsObj.stars).toLocaleString()}
+                </span>
+              ) : null}
+              {starsObj?.archived && <span className="text-warning">archived repo</span>}
+              {entry.updated && (
+                <span className="text-fg-muted">updated {entry.updated}</span>
+              )}
+              {entry.repository && (
+                <button
+                  onClick={() =>
+                    void ipc.openExternal(starsObj?.url ?? (entry.repository as string))
+                  }
+                  className="inline-flex items-center gap-1 text-fg-secondary hover:text-fg"
+                >
+                  <ExternalLink size={11} /> View source
+                </button>
+              )}
+            </div>
+            <p className="mt-1 text-[10px] text-fg-muted">
+              MCP servers run code or reach external services. Install ones you
+              trust — check the source first.
+            </p>
+          </div>
+
           <div>
             <label className="mb-1 block text-fg-secondary">Name</label>
             <input
